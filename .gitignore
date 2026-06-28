@@ -2,6 +2,9 @@
 
 # Xcode / JUCE build output
 Builds/**/build/
+build/
+build-*/
+cmake-build-*/
 DerivedData/
 xcuserdata/
 *.xcuserstate
@@ -16,4 +19,3 @@ xcuserdata/
 # Temporary files
 *.log
 *.tmp
-
