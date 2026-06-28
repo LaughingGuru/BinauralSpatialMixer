@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spatial Renderer UI</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #111;
+            color: #ddd;
+            font-family: Arial, sans-serif;
+        }
+
+        #app {
+            display: grid;
+            grid-template-columns: 280px minmax(420px, 1fr) 260px;
+            grid-template-rows: 64px minmax(300px, 1fr) 170px;
+            width: 100vw;
+            height: 100vh;
+            background: #161616;
+        }
+
+        .header {
+            grid-column: 1 / 4;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 0 24px;
+            background: #1f1f1f;
+            border-bottom: 1px solid #333;
+        }
+
+        .logo {
+            margin-right: 12px;
+            color: #fff;
+            font-size: 21px;
+            font-weight: 700;
+        }
+
+        .logo span {
+            color: #8cff38;
+        }
+
+        .tab {
+            padding: 8px 14px;
+            background: #2b2b2b;
+            border: 1px solid #3d3d3d;
+            color: #ddd;
+            font-size: 13px;
+        }
+
+        .left {
+            grid-row: 2 / 4;
+            display: flex;
+            min-height: 0;
+            flex-direction: column;
+            overflow: hidden;
+            background: #141414;
+            border-right: 1px solid #333;
+        }
+
+        .section-title {
+            padding: 12px 16px;
+            border-bottom: 1px solid #303030;
+            color: #aaa;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .object-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 9px;
+            padding: 16px;
+        }
+
+        .object-dot {
+            width: 30px;
+            height: 30px;
+            padding: 0;
+            justify-self: center;
+            border: 2px solid #28626b;
+            border-radius: 50%;
+            background: radial-gradient(
+                circle at 35% 30%,
+                #8cff38,
+                #159c28 45%,
+                #103f18 80%
+            );
+            box-shadow: 0 0 10px rgba(70, 255, 40, 0.35);
+        }
+
+        .object-dot:hover,
+        .object-dot:focus-visible {
+            border-color: #b7ff83;
+            outline: none;
+            transform: scale(2);
+        }
+
+        .object-dot.selected {
+            border-color: #b7ff83;
+            opacity: 1 !important;
+            box-shadow:
+                0 0 8px #4cff20,
+                0 0 18px rgba(70, 255, 40, 0.9);
+        }
+
+        .object-dot.focused {
+            border-color: #fff;
+            box-shadow:
+                0 0 0 2px #168de2,
+                0 0 10px #4cff20,
+                0 0 20px rgba(70, 255, 40, 0.9);
+        }
+
+        .object-controls {
+            margin: 0 16px 16px;
+            padding: 12px;
+            background: #1d1d1d;
+            border: 1px solid #353535;
+        }
+
+        .object-controls[hidden] {
+            display: none;
+        }
+
+        .object-controls-title {
+            margin-bottom: 12px;
+            color: #8cff38;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .slider-control {
+            display: grid;
+            grid-template-columns: 68px 1fr 48px;
+            align-items: center;
+            gap: 8px;
+            margin-top: 9px;
+            color: #bbb;
+            font-size: 11px;
+        }
+
+        .slider-control input {
+            width: 100%;
+            accent-color: #8cff38;
+            cursor: pointer;
+        }
+
+        .slider-value {
+            color: #eee;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .track-list {
+            min-height: 0;
+            overflow-y: auto;
+            border-top: 1px solid #303030;
+        }
+
+        .track {
+            display: grid;
+            grid-template-columns: 6px 1fr 38px;
+            align-items: center;
+            height: 38px;
+            border-bottom: 1px solid #2c2c2c;
+            font-size: 12px;
+        }
+
+        .track-color {
+            width: 6px;
+            height: 100%;
+        }
+
+        .track-name {
+            padding-left: 10px;
+        }
+
+        .track-meter {
+            height: 22px;
+            margin-right: 8px;
+            background: linear-gradient(to top, #24e329 70%, #182818 70%);
+        }
+
+        .center {
+            position: relative;
+            min-width: 0;
+            min-height: 0;
+            overflow: hidden;
+            background: #181818;
+        }
+
+        #three {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .coordinate-readout {
+            position: absolute;
+            top: 18px;
+            left: 18px;
+            min-width: 190px;
+            padding: 10px 12px;
+            background: rgba(20, 20, 20, 0.86);
+            border: 1px solid #465957;
+            color: #ddd;
+            font-size: 12px;
+            line-height: 1.55;
+            pointer-events: none;
+        }
+
+        .coordinate-readout strong {
+            display: block;
+            margin-bottom: 4px;
+            color: #8cff38;
+        }
+
+        .coordinate-values {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .axis-x {
+            color: #ff6868;
+        }
+
+        .axis-y {
+            color: #70ff70;
+        }
+
+        .axis-z {
+            color: #6ca8ff;
+        }
+
+        .view-controls {
+            position: absolute;
+            bottom: 18px;
+            left: 18px;
+            display: flex;
+            gap: 8px;
+        }
+
+        button {
+            padding: 7px 12px;
+            background: #2b2b2b;
+            border: 1px solid #444;
+            color: #ddd;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        button.active {
+            background: #168de2;
+            color: #fff;
+        }
+
+        .right {
+            display: grid;
+            grid-template-rows: 1fr 170px;
+            min-height: 0;
+            background: #121212;
+            border-left: 1px solid #333;
+        }
+
+        .speaker-panel {
+            position: relative;
+            border-bottom: 1px solid #333;
+        }
+
+        .speaker {
+            position: absolute;
+            top: 35px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #7dff36;
+            box-shadow: 0 0 12px #4cff20;
+        }
+
+        .speaker.left {
+            left: 50px;
+        }
+
+        .speaker.right {
+            right: 50px;
+        }
+
+        .master-meter {
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 12px;
+            padding-bottom: 20px;
+        }
+
+        .db-scale {
+            color: #888;
+            font-size: 10px;
+            line-height: 1.45;
+        }
+
+        .meter {
+            display: flex;
+            align-items: flex-end;
+            width: 24px;
+            height: 130px;
+            background: #222;
+            border: 1px solid #333;
+        }
+
+        .meter-fill {
+            width: 100%;
+            height: 72%;
+            background: linear-gradient(to top, #2cff2c, #8cff38);
+        }
+
+        .timeline {
+            position: relative;
+            grid-column: 2 / 3;
+            grid-row: 3;
+            overflow: hidden;
+            background: #252525;
+            border-top: 1px solid #3a3a3a;
+        }
+
+        .clip {
+            position: absolute;
+            height: 26px;
+            padding-left: 6px;
+            overflow: hidden;
+            background: #7130a8;
+            border: 1px solid #9854d8;
+            color: #fff;
+            font-size: 11px;
+            line-height: 24px;
+            white-space: nowrap;
+        }
+    </style>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+
+<body>
+    <div id="app">
+        <header class="header">
+            <div class="logo">Spatial<span>Mix</span></div>
+            <div class="tab">Monitoring: Binaural</div>
+            <div class="tab">I/O</div>
+            <div class="tab">Trim &amp; Downmix</div>
+            <div class="tab">Beds / Objects</div>
+        </header>
+
+        <aside class="left">
+            <div class="section-title">Objects and Beds</div>
+            <div class="object-grid" id="objectGrid"></div>
+
+            <div class="object-controls" id="objectControls" hidden>
+                <div class="object-controls-title" id="objectControlsTitle">
+                    Object 1
+                </div>
+
+                <label class="slider-control">
+                    <span>Azimuth</span>
+                    <input
+                        type="range"
+                        data-parameter="azimuth"
+                        min="-180"
+                        max="180"
+                        value="0"
+                    >
+                    <output class="slider-value" data-value="azimuth">0°</output>
+                </label>
+
+                <label class="slider-control">
+                    <span>Distance</span>
+                    <input
+                        type="range"
+                        data-parameter="distance"
+                        min="0"
+                        max="10"
+                        step="0.1"
+                        value="1"
+                    >
+                    <output class="slider-value" data-value="distance">1.0 m</output>
+                </label>
+
+                <label class="slider-control">
+                    <span>Elevation</span>
+                    <input
+                        type="range"
+                        data-parameter="elevation"
+                        min="-90"
+                        max="90"
+                        value="0"
+                    >
+                    <output class="slider-value" data-value="elevation">0°</output>
+                </label>
+            </div>
+
+            <div class="section-title">Tracks</div>
+            <div class="track-list" id="trackList"></div>
+        </aside>
+
+        <main class="center">
+            <canvas id="three"></canvas>
+
+            <div class="coordinate-readout" id="coordinateReadout" hidden>
+                <strong id="coordinateObjectName">Object 1</strong>
+                <div class="coordinate-values">
+                    <span class="axis-x">X: <span id="coordinateX">0.00</span> m</span>
+                    <span class="axis-y">Y: <span id="coordinateY">0.00</span> m</span>
+                    <span class="axis-z">Z: <span id="coordinateZ">-1.00</span> m</span>
+                </div>
+                <div>Relative to You; front is -Z</div>
+            </div>
+
+            <div class="view-controls">
+                <button type="button" class="active" data-view="free">Free</button>
+                <button type="button" data-view="top">Top</button>
+                <button type="button" data-view="rear">Rear</button>
+            </div>
+        </main>
+
+        <aside class="right">
+            <div class="speaker-panel">
+                <div class="speaker left"></div>
+                <div class="speaker right"></div>
+            </div>
+
+            <div class="master-meter">
+                <div class="db-scale">
+                    0<br>2<br>4<br>6<br>8<br>10<br>12<br>18<br>24<br>30<br>36<br>40
+                </div>
+
+                <div class="meter">
+                    <div class="meter-fill"></div>
+                </div>
+            </div>
+        </aside>
+
+        <div class="timeline" id="timeline"></div>
+    </div>
+
+    <script type="module">
+        import * as THREE from "three";
+        import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+        const objectGrid = document.getElementById("objectGrid");
+        const objectControls = document.getElementById("objectControls");
+        const objectControlsTitle = document.getElementById(
+            "objectControlsTitle"
+        );
+        const parameterInputs = objectControls.querySelectorAll(
+            "[data-parameter]"
+        );
+        const coordinateReadout = document.getElementById("coordinateReadout");
+        const coordinateObjectName = document.getElementById(
+            "coordinateObjectName"
+        );
+        const coordinateX = document.getElementById("coordinateX");
+        const coordinateY = document.getElementById("coordinateY");
+        const coordinateZ = document.getElementById("coordinateZ");
+        const initialElevations = [0, 15, -15, 30, -30];
+        const objectParameters = Array.from({ length: 50 }, (_, index) => ({
+            azimuth: ((index * 47 + 180) % 360) - 180,
+            distance: 2 + (index % 5) * 0.5,
+            elevation:
+                initialElevations[
+                    Math.floor(index / 5) % initialElevations.length
+                ]
+        }));
+        const activeObjectIndices = new Set();
+        let selectedObjectIndex = null;
+
+        function formatParameter(parameter, value) {
+            if (parameter === "distance") {
+                return `${Number(value).toFixed(1)} m`;
+            }
+
+            return `${value}°`;
+        }
+
+        function loadObjectControls(index) {
+            selectedObjectIndex = index;
+            objectControls.hidden = false;
+            objectControlsTitle.textContent = `Object ${index + 1}`;
+
+            document.querySelectorAll(".object-dot").forEach((dot, dotIndex) => {
+                dot.classList.toggle("focused", dotIndex === index);
+            });
+
+            parameterInputs.forEach((input) => {
+                const parameter = input.dataset.parameter;
+                const value = objectParameters[index][parameter];
+                input.value = value;
+                objectControls.querySelector(
+                    `[data-value="${parameter}"]`
+                ).value = formatParameter(parameter, value);
+            });
+
+            updateSelectedObject();
+        }
+
+        function toggleObject(index) {
+            const dot = objectGrid.children[index];
+
+            if (activeObjectIndices.has(index)) {
+                activeObjectIndices.delete(index);
+                dot.classList.remove("selected", "focused");
+                dot.setAttribute("aria-pressed", "false");
+                updateObjectVisibility(index);
+
+                if (selectedObjectIndex === index) {
+                    const remainingIndices = Array.from(activeObjectIndices);
+                    const nextIndex =
+                        remainingIndices[remainingIndices.length - 1];
+
+                    if (nextIndex === undefined) {
+                        selectedObjectIndex = null;
+                        objectControls.hidden = true;
+                        coordinateReadout.hidden = true;
+                    } else {
+                        loadObjectControls(nextIndex);
+                    }
+                }
+
+                return;
+            }
+
+            activeObjectIndices.add(index);
+            dot.classList.add("selected");
+            dot.setAttribute("aria-pressed", "true");
+            updateObjectVisibility(index);
+            loadObjectControls(index);
+        }
+
+        for (let i = 0; i < 50; i += 1) {
+            const dot = document.createElement("button");
+            dot.type = "button";
+            dot.className = "object-dot";
+            dot.style.opacity = Math.random() > 0.25 ? "1" : "0.35";
+            dot.setAttribute("aria-label", `Select object ${i + 1}`);
+            dot.setAttribute("aria-pressed", "false");
+            dot.addEventListener("click", () => toggleObject(i));
+            objectGrid.appendChild(dot);
+        }
+
+        parameterInputs.forEach((input) => {
+            input.addEventListener("input", () => {
+                if (selectedObjectIndex === null) {
+                    return;
+                }
+
+                const parameter = input.dataset.parameter;
+                objectParameters[selectedObjectIndex][parameter] = Number(
+                    input.value
+                );
+                objectControls.querySelector(
+                    `[data-value="${parameter}"]`
+                ).value = formatParameter(parameter, input.value);
+                updateSelectedObject();
+            });
+        });
+
+        const tracks = [
+            ["Top Telephone", "#29c9c2"],
+            ["Kick Ring", "#31c982"],
+            ["Whoosh", "#3dd889"],
+            ["Granular FX", "#27aa74"],
+            ["Bass", "#d56a35"],
+            ["Reesey Bass", "#ce7830"],
+            ["Leads", "#8842e5"],
+            ["Synth Lead FX", "#7f37d9"]
+        ];
+
+        const trackList = document.getElementById("trackList");
+
+        tracks.forEach(([name, color]) => {
+            const row = document.createElement("div");
+            row.className = "track";
+            row.innerHTML = `
+                <div class="track-color" style="background: ${color}"></div>
+                <div class="track-name">${name}</div>
+                <div class="track-meter"></div>
+            `;
+            trackList.appendChild(row);
+        });
+
+        const timeline = document.getElementById("timeline");
+
+        for (let i = 0; i < 9; i += 1) {
+            const clip = document.createElement("div");
+            clip.className = "clip";
+            clip.textContent = "Airline";
+            clip.style.left = `${90 + i * 95}px`;
+            clip.style.top = `${34 + (i % 2) * 36}px`;
+            clip.style.width = `${70 + Math.random() * 50}px`;
+            timeline.appendChild(clip);
+        }
+
+        const canvas = document.getElementById("three");
+        const renderer = new THREE.WebGLRenderer({
+            canvas,
+            antialias: true,
+            alpha: false
+        });
+
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x181818);
+
+        const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+        camera.position.set(16, 12, 18);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.target.set(0, 0, 0);
+
+        const roomSize = {
+            x: 20,
+            y: 20,
+            z: 20
+        };
+
+        const roomGeometry = new THREE.BoxGeometry(
+            roomSize.x,
+            roomSize.y,
+            roomSize.z
+        );
+
+        const roomMaterial = new THREE.MeshBasicMaterial({
+            color: 0x8ca7a2,
+            transparent: true,
+            opacity: 0.18,
+            side: THREE.BackSide,
+            depthWrite: false
+        });
+
+        const room = new THREE.Mesh(roomGeometry, roomMaterial);
+        scene.add(room);
+
+        const edges = new THREE.EdgesGeometry(roomGeometry);
+        const edgeMaterial = new THREE.LineBasicMaterial({
+            color: 0x56706e,
+            transparent: true,
+            opacity: 0.9
+        });
+
+        const wireframe = new THREE.LineSegments(edges, edgeMaterial);
+        scene.add(wireframe);
+
+        const grid = new THREE.GridHelper(20, 20, 0x425957, 0x2b3534);
+        grid.position.y = -10;
+        scene.add(grid);
+
+        const axes = new THREE.AxesHelper(3);
+        scene.add(axes);
+
+        const listener = new THREE.Mesh(
+            new THREE.SphereGeometry(0.22, 32, 32),
+            new THREE.MeshStandardMaterial({
+                color: 0xffff00,
+                roughness: 0.25,
+                metalness: 0.1,
+                emissive: 0xffff00
+            })
+        );
+
+        listener.position.set(0, 0, 0);
+        scene.add(listener);
+
+        const frontArrow = new THREE.ArrowHelper(
+            new THREE.Vector3(0, 0, -1),
+            listener.position,
+            2,
+            0xffff00,
+            0.35,
+            0.2
+        );
+        scene.add(frontArrow);
+
+        const objectMaterial = new THREE.MeshStandardMaterial({
+            color: 0x3cff26,
+            emissive: 0x127a14,
+            roughness: 0.35
+        });
+
+        const objects = [];
+
+        function makeLabel(text) {
+            const labelCanvas = document.createElement("canvas");
+            labelCanvas.width = 128;
+            labelCanvas.height = 64;
+
+            const context = labelCanvas.getContext("2d");
+            context.clearRect(0, 0, labelCanvas.width, labelCanvas.height);
+            context.fillStyle = "#d8d8d8";
+            context.font = "28px Arial";
+            context.textAlign = "center";
+            context.fillText(text, 64, 38);
+
+            const texture = new THREE.CanvasTexture(labelCanvas);
+            const material = new THREE.SpriteMaterial({
+                map: texture,
+                transparent: true,
+                depthTest: false
+            });
+
+            const sprite = new THREE.Sprite(material);
+            sprite.scale.set(0.42, 0.21, 1);
+            return sprite;
+        }
+
+        const listenerLabel = makeLabel("You");
+        listenerLabel.position.set(0, 0.6, 0);
+        scene.add(listenerLabel);
+
+        for (let i = 0; i < objectParameters.length; i += 1) {
+            const sphere = new THREE.Mesh(
+                new THREE.SphereGeometry(0.22, 24, 24),
+                objectMaterial
+            );
+            sphere.visible = false;
+
+            const label = makeLabel(String(i + 1));
+            label.visible = false;
+            sphere.userData.label = label;
+
+            const lineGeometry = new THREE.BufferGeometry().setFromPoints([
+                listener.position,
+                new THREE.Vector3(0, 0, -1)
+            ]);
+            const line = new THREE.Line(
+                lineGeometry,
+                new THREE.LineBasicMaterial({
+                    color: 0x8cff38,
+                    transparent: true,
+                    opacity: 0.55
+                })
+            );
+            line.visible = false;
+            sphere.userData.line = line;
+
+            objects.push(sphere);
+            scene.add(sphere);
+            scene.add(label);
+            scene.add(line);
+        }
+
+        function sphericalToCartesian({ azimuth, distance, elevation }) {
+            const azimuthRadians = THREE.MathUtils.degToRad(azimuth);
+            const elevationRadians = THREE.MathUtils.degToRad(elevation);
+            const horizontalDistance = distance * Math.cos(elevationRadians);
+
+            return new THREE.Vector3(
+                horizontalDistance * Math.sin(azimuthRadians),
+                distance * Math.sin(elevationRadians),
+                -horizontalDistance * Math.cos(azimuthRadians)
+            );
+        }
+
+        function updateObjectVisibility(index) {
+            if (objects.length === 0) {
+                return;
+            }
+
+            const object = objects[index];
+            const active = activeObjectIndices.has(index);
+            object.visible = active;
+            object.userData.label.visible = active;
+            object.userData.line.visible = active;
+
+            const position = sphericalToCartesian(
+                objectParameters[index]
+            );
+
+            object.position.copy(listener.position).add(position);
+            object.userData.label.position.copy(object.position);
+            object.userData.label.position.y += 0.5;
+            object.userData.line.geometry.setFromPoints([
+                listener.position,
+                object.position
+            ]);
+        }
+
+        function updateSelectedObject() {
+            if (selectedObjectIndex === null || objects.length === 0) {
+                return;
+            }
+
+            updateObjectVisibility(selectedObjectIndex);
+            const position = sphericalToCartesian(
+                objectParameters[selectedObjectIndex]
+            );
+            coordinateReadout.hidden = false;
+            coordinateObjectName.textContent =
+                `Object ${selectedObjectIndex + 1}`;
+            coordinateX.textContent = position.x.toFixed(2);
+            coordinateY.textContent = position.y.toFixed(2);
+            coordinateZ.textContent = position.z.toFixed(2);
+        }
+
+        const pointLight = new THREE.PointLight(0xffffff, 1.2);
+        pointLight.position.set(5, 8, 6);
+        scene.add(pointLight);
+
+        scene.add(new THREE.AmbientLight(0x667777, 1.5));
+
+        function resizeRenderer() {
+            const width = Math.max(canvas.clientWidth, 1);
+            const height = Math.max(canvas.clientHeight, 1);
+            const pixelRatio = renderer.getPixelRatio();
+            const targetWidth = Math.floor(width * pixelRatio);
+            const targetHeight = Math.floor(height * pixelRatio);
+
+            if (
+                canvas.width !== targetWidth ||
+                canvas.height !== targetHeight
+            ) {
+                renderer.setSize(width, height, false);
+                camera.aspect = width / height;
+                camera.updateProjectionMatrix();
+            }
+        }
+
+        document.querySelectorAll("[data-view]").forEach((button) => {
+            button.addEventListener("click", () => {
+                document.querySelectorAll("[data-view]").forEach((item) => {
+                    item.classList.remove("active");
+                });
+
+                button.classList.add("active");
+
+                if (button.dataset.view === "top") {
+                    camera.position.set(0, 24, 0.01);
+                } else if (button.dataset.view === "rear") {
+                    camera.position.set(0, 5, -24);
+                } else {
+                    camera.position.set(16, 12, 18);
+                }
+
+                controls.target.set(0, 0, 0);
+                controls.update();
+            });
+        });
+
+        function animate(time) {
+            resizeRenderer();
+
+            controls.update();
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        }
+
+        requestAnimationFrame(animate);
+    </script>
+</body>
+</html>

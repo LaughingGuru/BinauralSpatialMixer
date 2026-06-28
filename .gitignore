@@ -1,0 +1,19 @@
+.DS_Store
+
+# Xcode / JUCE build output
+Builds/**/build/
+DerivedData/
+xcuserdata/
+*.xcuserstate
+
+# Plugin binaries and debug bundles
+*.vst3
+*.component
+*.aaxplugin
+*.app
+*.dSYM
+
+# Temporary files
+*.log
+*.tmp
+

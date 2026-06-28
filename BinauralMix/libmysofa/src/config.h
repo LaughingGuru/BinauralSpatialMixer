@@ -1,0 +1,15 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
+#define HAVE_STDINT_H 1
+#define HAVE_STDLIB_H 1
+#define HAVE_STRING_H 1
+#define HAVE_MEMORY_H 1
+#define HAVE_MATH_H 1
+
+#define CMAKE_INSTALL_PREFIX ""
+#define CPACK_PACKAGE_VERSION_MAJOR 1
+#define CPACK_PACKAGE_VERSION_MINOR 0
+#define CPACK_PACKAGE_VERSION_PATCH 0
+
+#endif

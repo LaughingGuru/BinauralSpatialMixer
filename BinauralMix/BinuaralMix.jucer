@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<JUCERPROJECT id="KKP2Kn" name="BinuaralMix" projectType="audioplug" useAppConfig="0"
+              addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1" pluginFormats="buildAU,buildStandalone,buildVST3"
+              pluginVST3Category="Spatial,Stereo,Surround" pluginChannelConfigs="{8,2}">
+  <MAINGROUP id="HSUyhy" name="BinuaralMix">
+    <GROUP id="{5767E0EC-6A4F-3C35-B1D8-6CC9CEB39FAF}" name="Resources">
+      <FILE id="HQNg0h" name="appUI.html" compile="0" resource="1" file="Resources/appUI.html"
+            xcodeResource="0"/>
+      <FILE id="mKSOFA" name="MIT_KEMAR_normal_pinna.sofa" compile="0" resource="1"
+            file="libmysofa/share/MIT_KEMAR_normal_pinna.sofa" xcodeResource="0"/>
+    </GROUP>
+    <GROUP id="{218465D5-5B95-E716-5E15-C8C2607623CB}" name="Source">
+      <FILE id="Qh0QxD" name="speex_resampler.c" compile="1" resource="0"
+            file="libmysofa/src/resampler/speex_resampler.c"/>
+      <FILE id="kaJCU9" name="btree.c" compile="1" resource="0" file="libmysofa/src/hdf/btree.c"/>
+      <FILE id="bR6aHk" name="dataobject.c" compile="1" resource="0" file="libmysofa/src/hdf/dataobject.c"/>
+      <FILE id="m79nGN" name="fractalhead.c" compile="1" resource="0" file="libmysofa/src/hdf/fractalhead.c"/>
+      <FILE id="TEbaX2" name="gcol.c" compile="1" resource="0" file="libmysofa/src/hdf/gcol.c"/>
+      <FILE id="QIpV43" name="gunzip.c" compile="1" resource="0" file="libmysofa/src/hdf/gunzip.c"/>
+      <FILE id="SIsODE" name="superblock.c" compile="1" resource="0" file="libmysofa/src/hdf/superblock.c"/>
+      <FILE id="quC0va" name="cache.c" compile="1" resource="0" file="libmysofa/src/hrtf/cache.c"/>
+      <FILE id="rPlJ4v" name="check.c" compile="1" resource="0" file="libmysofa/src/hrtf/check.c"/>
+      <FILE id="rLVM3D" name="easy.c" compile="1" resource="0" file="libmysofa/src/hrtf/easy.c"/>
+      <FILE id="bhzBl3" name="interpolate.c" compile="1" resource="0" file="libmysofa/src/hrtf/interpolate.c"/>
+      <FILE id="x0N48Z" name="kdtree.c" compile="1" resource="0" file="libmysofa/src/hrtf/kdtree.c"/>
+      <FILE id="VFk6Yg" name="neighbors.c" compile="1" resource="0" file="libmysofa/src/hrtf/neighbors.c"/>
+      <FILE id="I1VvMZ" name="minphase.c" compile="1" resource="0" file="libmysofa/src/hrtf/minphase.c"/>
+      <FILE id="aAoXlC" name="loudness.c" compile="1" resource="0" file="libmysofa/src/hrtf/loudness.c"/>
+      <FILE id="poIsyf" name="lookup.c" compile="1" resource="0" file="libmysofa/src/hrtf/lookup.c"/>
+      <FILE id="L0ypG7" name="reader.c" compile="1" resource="0" file="libmysofa/src/hrtf/reader.c"/>
+      <FILE id="cfUMUB" name="resample.c" compile="1" resource="0" file="libmysofa/src/hrtf/resample.c"/>
+      <FILE id="KvNXxn" name="spherical.c" compile="1" resource="0" file="libmysofa/src/hrtf/spherical.c"/>
+      <FILE id="Lcsh4a" name="tools.c" compile="1" resource="0" file="libmysofa/src/hrtf/tools.c"/>
+      <FILE id="Xa2AkA" name="PluginProcessor.cpp" compile="1" resource="0"
+            file="Source/PluginProcessor.cpp"/>
+      <FILE id="h0jdi8" name="PluginProcessor.h" compile="0" resource="0"
+            file="Source/PluginProcessor.h"/>
+      <FILE id="OkYJeg" name="PluginEditor.cpp" compile="1" resource="0"
+            file="Source/PluginEditor.cpp"/>
+      <FILE id="itwVSA" name="PluginEditor.h" compile="0" resource="0" file="Source/PluginEditor.h"/>
+    </GROUP>
+  </MAINGROUP>
+  <MODULES>
+    <MODULE id="juce_audio_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_devices" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_formats" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_plugin_client" showAllCode="1" useLocalCopy="0"
+            useGlobalPath="1"/>
+    <MODULE id="juce_audio_processors" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_processors_headless" showAllCode="1" useLocalCopy="0"
+            useGlobalPath="1"/>
+    <MODULE id="juce_audio_utils" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_core" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_data_structures" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_dsp" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_events" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_graphics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_gui_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_gui_extra" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_javascript" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+  </MODULES>
+  <JUCEOPTIONS JUCE_STRICT_REFCOUNTEDPOINTER="1" JUCE_VST3_CAN_REPLACE_VST2="0"/>
+  <EXPORTFORMATS>
+    <XCODE_MAC targetFolder="Builds/MacOSX" extraLinkerFlags="-lz">
+      <CONFIGURATIONS>
+        <CONFIGURATION isDebug="1" name="Debug" targetName="BinuaralMix" headerPath="/Users/hisham/Documents/JUCEapps/BinuaralMix/libmysofa/src/hrtf&#10;/Users/hisham/Documents/JUCEapps/BinuaralMix/libmysofa/src/hdf&#10;/Users/hisham/Documents/JUCEapps/BinuaralMix/libmysofa/src&#10;/Users/hisham/Documents/JUCEapps/BinuaralMix/libmysofa/src/resampler"/>
+        <CONFIGURATION isDebug="0" name="Release" targetName="BinuaralMix"
+                       headerPath="/Users/hisham/Documents/JUCEapps/BinuaralMix/libmysofa/src/hrtf&#10;/Users/hisham/Documents/JUCEapps/BinuaralMix/libmysofa/src/hdf&#10;/Users/hisham/Documents/JUCEapps/BinuaralMix/libmysofa/src&#10;/Users/hisham/Documents/JUCEapps/BinuaralMix/libmysofa/src/resampler"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_audio_basics" path="../../../../../Applications/JUCE/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../../../../../Applications/JUCE/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../../../../../Applications/JUCE/modules"/>
+        <MODULEPATH id="juce_audio_plugin_client" path="../../../../../Applications/JUCE/modules"/>
+        <MODULEPATH id="juce_audio_processors" path="../../../../../Applications/JUCE/modules"/>
+        <MODULEPATH id="juce_audio_processors_headless" path="../../../../../Applications/JUCE/modules"/>
+        <MODULEPATH id="juce_audio_utils" path="../../../../../Applications/JUCE/modules"/>
+        <MODULEPATH id="juce_core" path="../../../../../Applications/JUCE/modules"/>
+        <MODULEPATH id="juce_data_structures" path="../../../../../Applications/JUCE/modules"/>
+        <MODULEPATH id="juce_dsp" path="../../../../../Applications/JUCE/modules"/>
+        <MODULEPATH id="juce_events" path="../../../../../Applications/JUCE/modules"/>
+        <MODULEPATH id="juce_graphics" path="../../../../../Applications/JUCE/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../../../../../Applications/JUCE/modules"/>
+        <MODULEPATH id="juce_gui_extra" path="../../../../../Applications/JUCE/modules"/>
+        <MODULEPATH id="juce_javascript" path="../../../../../Applications/JUCE/modules"/>
+      </MODULEPATHS>
+    </XCODE_MAC>
+  </EXPORTFORMATS>
+</JUCERPROJECT>
