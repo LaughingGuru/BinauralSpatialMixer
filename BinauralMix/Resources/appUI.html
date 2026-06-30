@@ -23,7 +23,7 @@
 
         #app {
             display: grid;
-            grid-template-columns: 280px minmax(420px, 1fr) 260px;
+            grid-template-columns: 360px minmax(420px, 1fr) 260px;
             grid-template-rows: 64px minmax(300px, 1fr);
             width: 100vw;
             height: 100vh;
@@ -135,7 +135,7 @@
         }
 
         .object-controls {
-            margin: 0 16px 16px;
+            margin: 0 12px 16px;
             padding: 12px;
             background: #1d1d1d;
             border: 1px solid #353535;
@@ -162,7 +162,7 @@
 
         .slider-control {
             display: grid;
-            grid-template-columns: 68px 1fr 48px;
+            grid-template-columns: 70px minmax(90px, 1fr) 64px;
             align-items: center;
             gap: 8px;
             margin-top: 9px;
@@ -176,9 +176,24 @@
             cursor: pointer;
         }
 
+        .slider-control select {
+            width: 100%;
+            min-width: 0;
+            padding: 4px 6px;
+            border: 1px solid #3d3d3d;
+            background: #242424;
+            color: #eee;
+            font-size: 11px;
+            cursor: pointer;
+        }
+
         .slider-value {
+            min-width: 0;
             color: #eee;
             text-align: right;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
             font-variant-numeric: tabular-nums;
         }
 
@@ -542,6 +557,7 @@
                     Math.floor(index / 5) % initialElevations.length
                 ],
             size: 1,
+            room: 1,
             enabled: index === 0
         }));
         const activeObjectIndices = new Set();
@@ -575,7 +591,11 @@
                 return `${Number(value).toFixed(1)}x`;
             }
 
-            return `${value}°`;
+            if (parameter === "room") {
+                return ["Open Space", "Small Room", "Large Room"][Number(value)] ?? "Small Room";
+            }
+
+            return `${Math.round(Number(value))}°`;
         }
 
         function notifyAudioProcessor(objectIndex, parameter, value) {
@@ -623,7 +643,7 @@
                     <span>Distance</span>
                     <input
                         type="range"
-                        min="0.2"
+                        min="1"
                         max="10"
                         step="0.1"
                         value="${objectParameters[index].distance}"
@@ -659,11 +679,24 @@
                     >
                     <output class="slider-value">${formatParameter("size", objectParameters[index].size)}</output>
                 </label>
+
+                <label class="slider-control">
+                    <span>Room</span>
+                    <select
+                        data-object="${index}"
+                        data-parameter="room"
+                    >
+                        <option value="0" ${objectParameters[index].room === 0 ? "selected" : ""}>Open Space</option>
+                        <option value="1" ${objectParameters[index].room === 1 ? "selected" : ""}>Small Room</option>
+                        <option value="2" ${objectParameters[index].room === 2 ? "selected" : ""}>Large Room</option>
+                    </select>
+                    <output class="slider-value">${formatParameter("room", objectParameters[index].room)}</output>
+                </label>
             `;
 
-            panel.querySelectorAll("input").forEach(input =>
+            panel.querySelectorAll("input, select").forEach(input =>
             {
-                input.addEventListener("input", () =>
+                input.addEventListener(input.tagName === "SELECT" ? "change" : "input", () =>
                 {
                     const parameter = input.dataset.parameter;
                     const value = Number(input.value);
@@ -690,29 +723,38 @@
             return panel;
         }
 
-        function toggleObject(index) {
+        function setObjectEnabled(index, enabled, shouldNotify = false) {
             const dot = objectGrid.children[index];
 
-            if (activeObjectIndices.has(index)) {
+            objectParameters[index].enabled = enabled;
+
+            if (enabled) {
+                if (!activeObjectIndices.has(index)) {
+                    activeObjectIndices.add(index);
+                    objectControlsContainer.appendChild(createObjectControls(index));
+                }
+
+                dot.classList.add("selected");
+                dot.setAttribute("aria-pressed", "true");
+                updateObjectVisibility(index);
+                updateFocusedObject(index);
+            }
+            else {
                 activeObjectIndices.delete(index);
                 document.getElementById(`controls-${index}`)?.remove();
-                notifyAudioProcessor( index, "enabled", 0);
                 dot.classList.remove("selected", "focused");
                 dot.setAttribute("aria-pressed", "false");
                 updateObjectVisibility(index);
                 selectNextActiveObject();
-
-                return;
             }
 
-            activeObjectIndices.add(index);
-            const controls = createObjectControls(index);
-            objectControlsContainer.appendChild(controls);
-            notifyAudioProcessor(index, "enabled", 1);
-            dot.classList.add("selected");
-            dot.setAttribute("aria-pressed", "true");
-            updateObjectVisibility(index);
-            updateFocusedObject(index);
+            if (shouldNotify) {
+                notifyAudioProcessor(index, "enabled", enabled ? 1 : 0);
+            }
+        }
+
+        function toggleObject(index) {
+            setObjectEnabled(index, !activeObjectIndices.has(index), true);
         }
 
         function updateFocusedObject(index) {
@@ -745,6 +787,62 @@
 
             updateFocusedObject(nextActiveIndex);
         }
+
+        window.setSpatialState = (state) => {
+            if (!state || !Array.isArray(state.objects)) {
+                return;
+            }
+
+            activeObjectIndices.clear();
+            objectControlsContainer.replaceChildren();
+
+            state.objects.slice(0, objectCount).forEach((objectState, index) => {
+                objectParameters[index] = {
+                    ...objectParameters[index],
+                    azimuth: Number(objectState.azimuth ?? objectParameters[index].azimuth),
+                    distance: Number(objectState.distance ?? objectParameters[index].distance),
+                    elevation: Number(objectState.elevation ?? objectParameters[index].elevation),
+                    size: Number(objectState.size ?? objectParameters[index].size),
+                    room: Number(objectState.room ?? objectParameters[index].room),
+                    enabled: Boolean(objectState.enabled)
+                };
+
+                const dot = objectGrid.children[index];
+                dot.classList.remove("selected", "focused");
+                dot.setAttribute("aria-pressed", "false");
+
+                if (objectParameters[index].enabled) {
+                    activeObjectIndices.add(index);
+                    objectControlsContainer.appendChild(createObjectControls(index));
+                    dot.classList.add("selected");
+                    dot.setAttribute("aria-pressed", "true");
+                }
+
+                updateObjectVisibility(index);
+            });
+
+            let nextSelectedObjectIndex = Number(state.selectedObjectIndex);
+
+            if (!activeObjectIndices.has(nextSelectedObjectIndex)) {
+                nextSelectedObjectIndex = activeObjectIndices.size > 0
+                    ? Array.from(activeObjectIndices).at(-1)
+                    : null;
+            }
+
+            if (nextSelectedObjectIndex === null) {
+                selectedObjectIndex = null;
+                coordinateReadout.hidden = true;
+                updateListenerPreview(null);
+
+                Array.from(objectGrid.children).forEach((dot) => {
+                    dot.classList.remove("focused");
+                });
+
+                return;
+            }
+
+            updateFocusedObject(nextSelectedObjectIndex);
+        };
 
         for (let i = 0; i < objectCount; i += 1) {
             const dot = document.createElement("button");
@@ -1233,7 +1331,7 @@
             updateListenerPreview(selectedObjectIndex);
         }
 
-        toggleObject(0);
+        setObjectEnabled(0, true, false);
 
         const pointLight = new THREE.PointLight(0xffffff, 1.2);
         pointLight.position.set(5, 8, 6);

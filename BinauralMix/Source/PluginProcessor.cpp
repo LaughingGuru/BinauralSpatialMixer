@@ -13,8 +13,51 @@ extern "C"
 namespace
 {
 constexpr auto parameterTreeId = "BinuaralMixParameters";
-constexpr float minimumAudibleDistance = 1.0f;
 constexpr float outputCeiling = 0.95f;
+constexpr float minimumAudibleDistance = 1.0f;
+constexpr float maximumEarlyReflectionDelayMs = 32.0f;
+
+struct CombReflection
+{
+    float delayMs = 0.0f;
+    float gain = 0.0f;
+};
+
+constexpr std::array<CombReflection, 4> earlyReflections
+{{
+    { 7.0f, 0.22f },
+    { 13.0f, 0.16f },
+    { 21.0f, 0.11f },
+    { maximumEarlyReflectionDelayMs, 0.07f }
+}};
+
+constexpr int openSpaceRoom = 0;
+constexpr int smallRoom = 1;
+constexpr int largeRoom = 2;
+
+struct RoomSettings
+{
+    float reverbRoomSize = 0.3f;
+    float reverbDamping = 0.6f;
+    float reverbWetScale = 0.2f;
+    float earlyReflectionScale = 0.0f;
+};
+
+RoomSettings getRoomSettings (int room)
+{
+    switch (room)
+    {
+        case openSpaceRoom:
+            return { 0.15f, 0.75f, 0.12f, 0.08f };
+
+        case largeRoom:
+            return { 0.9f, 0.45f, 1.25f, 0.85f };
+
+        case smallRoom:
+        default:
+            return { 0.45f, 0.6f, 0.65f, 0.7f };
+    }
+}
 
 float wrapAzimuthDegrees (float azimuth)
 {
@@ -35,8 +78,6 @@ BinuaralMixAudioProcessor::BinuaralMixAudioProcessor()
       juce::Thread ("SOFA HRIR Loader"),
       parameters (*this, nullptr, parameterTreeId, createParameterLayout())
 {
-    formatManager.registerBasicFormats();
-    
 }
 
 BinuaralMixAudioProcessor::~BinuaralMixAudioProcessor()
@@ -59,7 +100,7 @@ BinuaralMixAudioProcessor::createParameterLayout()
 
     const std::array<float, numSpatialObjects> defaultDistances
     {{
-        1.0f,
+        1.4f,
         2.5f,
         3.0f,
         3.5f
@@ -87,7 +128,7 @@ BinuaralMixAudioProcessor::createParameterLayout()
         layout.add (std::make_unique<juce::AudioParameterFloat> (
             juce::ParameterID { getObjectParameterId (index, distanceParameterId), 1 },
             objectName + " Distance",
-            juce::NormalisableRange<float> { 0.2f, 10.0f, 0.01f, 0.45f },
+            juce::NormalisableRange<float> { 1.0f, 10.0f, 0.01f, 0.45f },
             defaultDistances[index],
             juce::AudioParameterFloatAttributes().withLabel ("m")));
 
@@ -104,6 +145,17 @@ BinuaralMixAudioProcessor::createParameterLayout()
             juce::NormalisableRange<float> { 1.0f, 5.0f, 0.1f },
             1.0f,
             juce::AudioParameterFloatAttributes().withLabel ("x")));
+
+        layout.add (std::make_unique<juce::AudioParameterChoice> (
+            juce::ParameterID { getObjectParameterId (index, roomParameterId), 1 },
+            objectName + " Room",
+            juce::StringArray { "Open Space", "Small Room", "Large Room" },
+            smallRoom));
+
+        layout.add (std::make_unique<juce::AudioParameterBool> (
+            juce::ParameterID { getObjectParameterId (index, enabledParameterId), 1 },
+            objectName + " Enabled",
+            index == 0));
     }
 
     return layout;
@@ -122,33 +174,6 @@ juce::String BinuaralMixAudioProcessor::getObjectParameterId (
 const juce::String BinuaralMixAudioProcessor::getName() const
 {
     return JucePlugin_Name;
-}
-
-bool BinuaralMixAudioProcessor::loadAudioFile(SpatialObject& object, const juce::File& file)
-{
-    auto* reader = formatManager.createReaderFor(file);
-
-    if (reader == nullptr)
-        return false;
-
-    auto newSource =
-        std::make_unique<juce::AudioFormatReaderSource>(
-            reader,
-            true);
-    
-    newSource->setLooping(true);
-
-    object.transportSource.setSource(
-        newSource.get(),
-        0,
-        nullptr,
-        reader->sampleRate);
-
-    object.readerSource = std::move(newSource);
-
-    object.transportSource.start();
-
-    return true;
 }
 
 bool BinuaralMixAudioProcessor::acceptsMidi() const
@@ -202,14 +227,13 @@ void BinuaralMixAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
         1
     };
     
+    updateObjectsFromParameters();
+
     for (size_t index = 0; index < objects.size(); ++index)
     {
         auto& object = objects[index];
         objectRMS[index].store (-100.0f);
 
-        //Stereo Input
-        object.fileBuffer.setSize(2, maximumBlockSize);
-        
         //HRTF Processing Buffers are mono.
         object.monoBuffer.setSize(1, maximumBlockSize);
         object.leftBufferA.setSize(1, maximumBlockSize);
@@ -217,7 +241,6 @@ void BinuaralMixAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
         object.leftBufferB.setSize(1, maximumBlockSize);
         object.rightBufferB.setSize(1, maximumBlockSize);
         
-        object.fileBuffer.clear();
         object.monoBuffer.clear();
         object.leftBufferA.clear();
         object.rightBufferA.clear();
@@ -230,14 +253,32 @@ void BinuaralMixAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
         object.leftConvolutionB.prepare (spec);
         object.rightConvolutionB.prepare (spec);
         
-        // Preparing Reverb
+        // Preparing Reverb and early reflections
         object.wetBuffer.setSize(2, maximumBlockSize);
+
+        const auto earlyReflectionDelaySamples =
+            juce::roundToInt (maximumEarlyReflectionDelayMs * 0.001f * sampleRate)
+            + maximumBlockSize + 1;
+        object.earlyReflectionDelayLeft.setSize (1, earlyReflectionDelaySamples);
+        object.earlyReflectionDelayRight.setSize (1, earlyReflectionDelaySamples);
+        object.earlyReflectionDelayLeft.clear();
+        object.earlyReflectionDelayRight.clear();
+        object.earlyReflectionDelayWritePosition = 0;
+
         object.reverb.prepare(spec);
+        object.earlyReflectionLeftLPF.prepare (spec);
+        object.earlyReflectionRightLPF.prepare (spec);
+        object.earlyReflectionLeftLPF.setType (juce::dsp::StateVariableTPTFilterType::lowpass);
+        object.earlyReflectionRightLPF.setType (juce::dsp::StateVariableTPTFilterType::lowpass);
+        object.earlyReflectionLeftLPF.setCutoffFrequency (3500.0f);
+        object.earlyReflectionRightLPF.setCutoffFrequency (3500.0f);
         
         juce::dsp::Reverb::Parameters params;
         
-        params.roomSize = 0.7f;
-        params.damping = 0.5f;
+        const auto roomSettings = getRoomSettings (object.room.load());
+
+        params.roomSize = roomSettings.reverbRoomSize;
+        params.damping = roomSettings.reverbDamping;
         params.width = 1.0f;
         params.freezeMode = 0.0f;
         params.wetLevel = 1.0f;
@@ -267,6 +308,8 @@ void BinuaralMixAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
 
         object.leftDistanceLPF.reset();
         object.rightDistanceLPF.reset();
+        object.earlyReflectionLeftLPF.reset();
+        object.earlyReflectionRightLPF.reset();
         object.wetLeftLPF.reset();
         object.wetRightLPF.reset();
 
@@ -275,7 +318,6 @@ void BinuaralMixAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
         object.crossfadePosition = 1.0f;
         object.crossfadeIncrement = 0.0f;
         object.binauralIrReady.store (false);
-        object.enable.store (index == 0);
 
         {
             const juce::SpinLock::ScopedLockType lock (
@@ -301,11 +343,6 @@ void BinuaralMixAudioProcessor::releaseResources()
     
     for (auto& object : objects)
     {
-        object.transportSource.stop();
-        object.transportSource.releaseResources();
-        object.transportSource.setSource(nullptr);
-        object.readerSource.reset();
-        
         object.pendingImpulse.reset();
     }
 }
@@ -606,18 +643,68 @@ void BinuaralMixAudioProcessor::processBlock (
                 }
             }
 
-            // Apply distance filtering to this object only.
+            // Apply distance filtering to this object only after HRTF processing.
             const auto distance =
                 juce::jlimit (
-                    0.2f,
+                    0.8f,
                     10.0f,
                     object.distance.load());
             
             //Apply Comb Filtering for early reflections
             
 
+            // Apply room processing after HRTF on this object.
+            const auto roomSettings = getRoomSettings (object.room.load());
+
+            if (roomSettings.earlyReflectionScale > 0.0f
+                && object.earlyReflectionDelayLeft.getNumSamples() > 0
+                && object.earlyReflectionDelayRight.getNumSamples() > 0)
+            {
+                const auto delayBufferLength = object.earlyReflectionDelayLeft.getNumSamples();
+                auto writePosition = object.earlyReflectionDelayWritePosition;
+
+                for (int sample = 0; sample < blockSize; ++sample)
+                {
+                    const auto directLeft = object.leftBufferA.getSample (0, sample);
+                    const auto directRight = object.rightBufferA.getSample (0, sample);
+                    auto reflectionLeft = 0.0f;
+                    auto reflectionRight = 0.0f;
+
+                    object.earlyReflectionDelayLeft.setSample (0, writePosition, directLeft);
+                    object.earlyReflectionDelayRight.setSample (0, writePosition, directRight);
+
+                    for (const auto& reflection : earlyReflections)
+                    {
+                        const auto delaySamples = juce::roundToInt (reflection.delayMs * 0.001f * currentSampleRate.load());
+                        const auto readPosition = (writePosition - delaySamples + delayBufferLength) % delayBufferLength;
+                        const auto gain = reflection.gain * roomSettings.earlyReflectionScale;
+
+                        reflectionLeft += object.earlyReflectionDelayLeft.getSample (0, readPosition) * gain;
+                        reflectionRight += object.earlyReflectionDelayRight.getSample (0, readPosition) * gain;
+                    }
+
+                    reflectionLeft = object.earlyReflectionLeftLPF.processSample (0, reflectionLeft);
+                    reflectionRight = object.earlyReflectionRightLPF.processSample (0, reflectionRight);
+
+                    object.leftBufferA.addSample (0, sample, reflectionLeft);
+                    object.rightBufferA.addSample (0, sample, reflectionRight);
+
+                    writePosition = (writePosition + 1) % delayBufferLength;
+                }
+
+                object.earlyReflectionDelayWritePosition = writePosition;
+            }
+
             // Apply Reverb on this object
             const float wetHrtfAmount = 0.45f; // 0 = mono wet, 1 = Full HRTF wet
+            juce::dsp::Reverb::Parameters reverbParams;
+            reverbParams.roomSize = roomSettings.reverbRoomSize;
+            reverbParams.damping = roomSettings.reverbDamping;
+            reverbParams.width = 1.0f;
+            reverbParams.freezeMode = 0.0f;
+            reverbParams.wetLevel = 1.0f;
+            reverbParams.dryLevel = 0.0f;
+            object.reverb.setParameters (reverbParams);
             
             for (int sample = 0; sample < blockSize; ++sample)
             {
@@ -653,8 +740,10 @@ void BinuaralMixAudioProcessor::processBlock (
             auto wetBlock = juce::dsp::AudioBlock<float>(object.wetBuffer).getSubBlock(0, static_cast<size_t> (blockSize));
             object.reverb.process(juce::dsp::ProcessContextReplacing<float>(wetBlock));
             
-            const auto wetAmount = juce::jmap (distance, 1.0f, 10.0f, 0.05f, 0.45f);
-            const auto dryAmount = juce::jmap (distance, 1.0f, 10.0f, 1.0f, 0.85f);
+            const auto wetAmount =
+                juce::jmap (distance, 1.0f, 10.0f, 0.05f, 0.45f)
+                * roomSettings.reverbWetScale;
+            const auto dryAmount = 1.0f / distance;
             
             object.leftBufferA.applyGain(0, blockSize, dryAmount);
             object.rightBufferA.applyGain(0, blockSize, dryAmount);
@@ -765,6 +854,7 @@ void BinuaralMixAudioProcessor::run()
     std::array<float, 4> previousElevation {};
     std::array<float, 4> previousDistance {};
     std::array<float, 4> previousSize {};
+    std::array<int, 4> previousRoom {};
     
 
     while (! threadShouldExit())
@@ -780,6 +870,7 @@ void BinuaralMixAudioProcessor::run()
             const auto elevation = object.elevation.load();
             const auto distance = object.distance.load();
             const auto size = object.size.load();
+            const auto room = object.room.load();
 
             const auto changed =
                 ! hasPreviousPosition[index]
@@ -790,7 +881,8 @@ void BinuaralMixAudioProcessor::run()
                 || std::abs (
                     distance - previousDistance[index]) >= 0.005f
                 || std::abs (
-                    size - previousSize[index]) >= 0.01f;
+                    size - previousSize[index]) >= 0.01f
+                || room != previousRoom[index];
 
             if (! changed)
                 continue;
@@ -801,6 +893,7 @@ void BinuaralMixAudioProcessor::run()
                 elevation,
                 distance,
                 size,
+                room,
                 filterLength,
                 sofa);
 
@@ -808,6 +901,7 @@ void BinuaralMixAudioProcessor::run()
             previousElevation[index] = elevation;
             previousDistance[index] = distance;
             previousSize[index] = size;
+            previousRoom[index] = room;
             hasPreviousPosition[index] = true;
         }
 
@@ -822,10 +916,12 @@ void BinuaralMixAudioProcessor::prepareImpulseResponse (BinuaralMixAudioProcesso
     float elevationDegrees,
     float distanceMetres,
     float size,
+    int room,
     int filterLength,
     MYSOFA_EASY* sofa)
 {
     const auto sampleRate = static_cast<float> (currentSampleRate.load());
+    const auto roomSettings = getRoomSettings (room);
     
     auto applyFractionalDelay = [] (std::vector<float>& ir, float frac) {
         if (frac <= 0.0f)
@@ -898,6 +994,7 @@ void BinuaralMixAudioProcessor::prepareImpulseResponse (BinuaralMixAudioProcesso
             juce::jlimit (-40.0f, 90.0f, elevationDegrees + offset.elevationOffsetDegrees);
         const auto azimuth = juce::degreesToRadians (spreadAzimuthDegrees);
         const auto elevation = juce::degreesToRadians (spreadElevationDegrees);
+
         const auto horizontalDistance = distanceMetres * std::cos (elevation);
 
         // SOFA Cartesian coordinates are +X front, +Y left, +Z up.
@@ -944,27 +1041,14 @@ void BinuaralMixAudioProcessor::prepareImpulseResponse (BinuaralMixAudioProcesso
         spreadFilters.push_back (std::move (spreadFilter));
     }
 
-    
-    // Comb Filtering to mimic Early Reflections
-    struct CombReflection {
-        float delayMs;
-        float gain;
-    };
-    
-    const std::array<CombReflection, 4> reflections
-    {{
-        {7.0f, 0.22f}, // reflection after 7ms, 22% gain
-        {13.0f, 0.16f}, // reflection after 13ms, 16% gain
-        {21.0f, 0.11f},
-        {32.0f, 0.07f}
-    }};
-    
-    const auto maxReflectionDelaySamples = juce::roundToInt(32.0f * 0.001f * sampleRate);
-    
     const auto totalLength =
-    filterLength + juce::jmax (maxLeftDelaySamples, maxRightDelaySamples) + maxReflectionDelaySamples + 1;
+    filterLength + juce::jmax (maxLeftDelaySamples, maxRightDelaySamples) + 1;
     
     
+    const auto distanceGain = std::pow (minimumAudibleDistance
+                                         / std::max (minimumAudibleDistance, distanceMetres),
+                                         0.45f);
+
     auto update = std::make_unique<PendingImpulseResponse>();
     update->left.setSize (1, totalLength);
     update->right.setSize (1, totalLength);
@@ -979,38 +1063,14 @@ void BinuaralMixAudioProcessor::prepareImpulseResponse (BinuaralMixAudioProcesso
             spreadFilter.leftDelaySamples,
             spreadFilter.left.data(),
             filterLength,
-            spreadFilter.gain);
+            spreadFilter.gain * distanceGain);
         update->right.addFrom (
             0,
             spreadFilter.rightDelaySamples,
             spreadFilter.right.data(),
             filterLength,
-            spreadFilter.gain);
-
-        // Early reflection taps.
-        for (const auto& reflection : reflections)
-        {
-            const auto reflectionDelaySamples = juce::roundToInt(reflection.delayMs * 0.001f * sampleRate);
-
-            update->left.addFrom (
-                0,
-                spreadFilter.leftDelaySamples + reflectionDelaySamples,
-                spreadFilter.left.data(),
-                filterLength,
-                reflection.gain * spreadFilter.gain);
-            update->right.addFrom (
-                0,
-                spreadFilter.rightDelaySamples + reflectionDelaySamples,
-                spreadFilter.right.data(),
-                filterLength,
-                reflection.gain * spreadFilter.gain);
-        }
+            spreadFilter.gain * distanceGain);
     }
-
-    const auto distanceGain = std::pow (minimumAudibleDistance / juce::jmax (minimumAudibleDistance, distanceMetres), 0.45f);
-    
-    update->left.applyGain (distanceGain);
-    update->right.applyGain (distanceGain);
 
     const juce::SpinLock::ScopedLockType lock (object.pendingImpulseLock);
     object.pendingImpulse = std::move (update);
@@ -1047,6 +1107,14 @@ void BinuaralMixAudioProcessor::updateObjectsFromParameters()
         if (auto* value = parameters.getRawParameterValue (
                 getObjectParameterId (index, sizeParameterId)))
             object.size.store (value->load());
+
+        if (auto* value = parameters.getRawParameterValue (
+                getObjectParameterId (index, roomParameterId)))
+            object.room.store (juce::jlimit (openSpaceRoom, largeRoom, juce::roundToInt (value->load())));
+
+        if (auto* value = parameters.getRawParameterValue (
+                getObjectParameterId (index, enabledParameterId)))
+            object.enable.store (value->load() > 0.5f);
     }
 }
 
@@ -1100,19 +1168,79 @@ void BinuaralMixAudioProcessor::setParameterFromWebView (int objectIndex,
         setAutomatableObjectParameter (
             objectIndex,
             distanceParameterId,
-            juce::jlimit (0.2f, 10.0f, value));
+            juce::jlimit (1.0f, 10.0f, value));
     else if (parameterId == "size")
         setAutomatableObjectParameter (
             objectIndex,
             sizeParameterId,
             juce::jlimit (0.1f, 5.0f, value));
+    else if (parameterId == "room")
+        setAutomatableObjectParameter (
+            objectIndex,
+            roomParameterId,
+            static_cast<float> (juce::jlimit (openSpaceRoom, largeRoom, juce::roundToInt (value))));
     else if (parameterId == "enabled")
-        object.enable.store (value > 0.5f);
+        setAutomatableObjectParameter (
+            objectIndex,
+            enabledParameterId,
+            value > 0.5f ? 1.0f : 0.0f);
     
     updateObjectsFromParameters();
 
     if (parameterId == "size")
         object.size.store (juce::jlimit (0.1f, 5.0f, value));
+    else if (parameterId == "room")
+        object.room.store (juce::jlimit (openSpaceRoom, largeRoom, juce::roundToInt (value)));
+    else if (parameterId == "enabled")
+        object.enable.store (value > 0.5f);
+}
+
+juce::var BinuaralMixAudioProcessor::getWebViewState() const
+{
+    auto rootObject = std::make_unique<juce::DynamicObject>();
+    juce::Array<juce::var> objectValues;
+    auto selectedObjectIndex = -1;
+
+    auto readParameter = [this] (size_t objectIndex,
+                                const juce::String& parameterId,
+                                float fallback)
+    {
+        if (auto* value = parameters.getRawParameterValue (
+                getObjectParameterId (objectIndex, parameterId)))
+            return value->load();
+
+        return fallback;
+    };
+
+    for (size_t index = 0; index < objects.size(); ++index)
+    {
+        const auto enabled = readParameter (index, enabledParameterId, index == 0 ? 1.0f : 0.0f) > 0.5f;
+        auto objectValue = std::make_unique<juce::DynamicObject>();
+
+        objectValue->setProperty (azimuthParameterId,
+                                  readParameter (index, azimuthParameterId, objects[index].azimuth.load()));
+        objectValue->setProperty (distanceParameterId,
+                                  readParameter (index, distanceParameterId, objects[index].distance.load()));
+        objectValue->setProperty (elevationParameterId,
+                                  readParameter (index, elevationParameterId, objects[index].elevation.load()));
+        objectValue->setProperty (sizeParameterId,
+                                  readParameter (index, sizeParameterId, objects[index].size.load()));
+        objectValue->setProperty (roomParameterId,
+                                  juce::jlimit (openSpaceRoom,
+                                                largeRoom,
+                                                juce::roundToInt (readParameter (index, roomParameterId, static_cast<float> (objects[index].room.load())))));
+        objectValue->setProperty (enabledParameterId, enabled);
+
+        if (selectedObjectIndex < 0 && enabled)
+            selectedObjectIndex = static_cast<int> (index);
+
+        objectValues.add (juce::var (objectValue.release()));
+    }
+
+    rootObject->setProperty ("objects", juce::var (objectValues));
+    rootObject->setProperty ("selectedObjectIndex", juce::jmax (0, selectedObjectIndex));
+
+    return juce::var (rootObject.release());
 }
 
 void BinuaralMixAudioProcessor::getStateInformation (

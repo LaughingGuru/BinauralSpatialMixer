@@ -13,13 +13,16 @@ std::vector<std::byte> binaryDataToVector (const char* data, int size)
 
 juce::WebBrowserComponent::Options
 BinuaralMixAudioProcessorEditor::makeWebViewOptions (
-    BinuaralMixAudioProcessor& processor)
+    BinuaralMixAudioProcessor& ownerProcessor)
 {
-    return juce::WebBrowserComponent::Options {}
+    auto options = juce::WebBrowserComponent::Options {}
+       #if JUCE_WINDOWS
+        .withBackend (juce::WebBrowserComponent::Options::Backend::webview2)
+       #endif
         .withNativeIntegrationEnabled()
         .withEventListener (
             "spatialParameterChanged",
-            [&processor] (juce::var payload)
+            [&ownerProcessor] (juce::var payload)
             {
                 const auto* object = payload.getDynamicObject();
 
@@ -34,7 +37,7 @@ BinuaralMixAudioProcessorEditor::makeWebViewOptions (
                 const auto value =
                     static_cast<float> (object->getProperty ("value"));
 
-                processor.setParameterFromWebView (objectIndex, parameterId, value);
+                ownerProcessor.setParameterFromWebView (objectIndex, parameterId, value);
             })
        #if JUCE_WEB_BROWSER_RESOURCE_PROVIDER_AVAILABLE
         .withResourceProvider (
@@ -55,13 +58,15 @@ BinuaralMixAudioProcessorEditor::makeWebViewOptions (
             })
        #endif
         ;
+
+    return options;
 }
 
 BinuaralMixAudioProcessorEditor::BinuaralMixAudioProcessorEditor (
-    BinuaralMixAudioProcessor& processor)
-    : AudioProcessorEditor (&processor),
-      audioProcessor (processor),
-      webView (makeWebViewOptions (processor))
+    BinuaralMixAudioProcessor& ownerProcessor)
+    : AudioProcessorEditor (&ownerProcessor),
+      audioProcessor (ownerProcessor),
+      webView (makeWebViewOptions (ownerProcessor))
 {
     addAndMakeVisible (webView);
     setResizable (true, true);
@@ -90,8 +95,22 @@ void BinuaralMixAudioProcessorEditor::resized()
     webView.setBounds (getLocalBounds());
 }
 
+void BinuaralMixAudioProcessorEditor::pushStateToWebView()
+{
+    webView.evaluateJavascript (
+        "window.setSpatialState?.("
+        + juce::JSON::toString (audioProcessor.getWebViewState(), true)
+        + ");");
+}
+
 void BinuaralMixAudioProcessorEditor::timerCallback()
 {
+    if (stateSyncTicksRemaining > 0)
+    {
+        pushStateToWebView();
+        --stateSyncTicksRemaining;
+    }
+
     const auto leftRMS = audioProcessor.getLeftRMS();
     const auto rightRMS = audioProcessor.getRightRMS();
 

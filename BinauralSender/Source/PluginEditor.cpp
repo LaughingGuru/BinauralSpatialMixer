@@ -1,9 +1,9 @@
 #include "PluginEditor.h"
 
 BinuaralSenderAudioProcessorEditor::BinuaralSenderAudioProcessorEditor (
-    BinuaralSenderAudioProcessor& processor)
-    : AudioProcessorEditor (&processor),
-      audioProcessor (processor)
+    BinuaralSenderAudioProcessor& Newprocessor)
+    : AudioProcessorEditor (&Newprocessor),
+      audioProcessor (Newprocessor)
 {
     titleLabel.setText ("Binuaral Sender", juce::dontSendNotification);
     titleLabel.setJustificationType (juce::Justification::centredLeft);

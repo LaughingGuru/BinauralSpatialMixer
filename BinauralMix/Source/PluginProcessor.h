@@ -38,6 +38,7 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
 
     void setParameterFromWebView (int objectIndex, const juce::String& parameterId, float value);
+    juce::var getWebViewState() const;
     
     float getLeftRMS() const
     {
@@ -63,6 +64,8 @@ public:
     static constexpr auto distanceParameterId = "distance";
     static constexpr auto elevationParameterId = "elevation";
     static constexpr auto sizeParameterId = "size";
+    static constexpr auto roomParameterId = "room";
+    static constexpr auto enabledParameterId = "enabled";
     static constexpr size_t numSpatialObjects = 4;
 
 private:
@@ -82,15 +85,12 @@ private:
         std::atomic<float> elevation { 0.0f };
         std::atomic<float> distance { 1.0f };
         std::atomic<float> size { 1.0f };
+        std::atomic<int> room { 1 };
         
         BinuaralTransport::Receiver receiver;
         BinuaralTransport::ReceivedBlock receivedBlock;
         bool senderOpen = false;
         
-        std::unique_ptr<juce::AudioFormatReaderSource> readerSource;
-        juce::AudioTransportSource transportSource;
-        
-        juce::AudioBuffer<float> fileBuffer;
         juce::AudioBuffer<float> monoBuffer;
         
         juce::AudioBuffer<float> leftBufferA, rightBufferA;
@@ -107,6 +107,11 @@ private:
         
         
         juce::AudioBuffer<float> wetBuffer;
+        juce::AudioBuffer<float> earlyReflectionDelayLeft;
+        juce::AudioBuffer<float> earlyReflectionDelayRight;
+        int earlyReflectionDelayWritePosition = 0;
+        juce::dsp::StateVariableTPTFilter<float> earlyReflectionLeftLPF;
+        juce::dsp::StateVariableTPTFilter<float> earlyReflectionRightLPF;
         juce::dsp::Reverb reverb;
         juce::dsp::DryWetMixer<float> dryWetMixer;
         
@@ -146,14 +151,10 @@ private:
                                  float elevationDegrees,
                                  float distanceMetres,
                                  float size,
+                                 int room,
                                  int filterLength,
                                  MYSOFA_EASY* sofa);
     
-    juce::AudioFormatManager formatManager;
-    
-    bool loadAudioFile(SpatialObject& object,
-                       const juce::File& file);
-
     std::atomic<double> currentSampleRate { 44100.0 };
     std::atomic<int> currentIrLength { 0 };
 

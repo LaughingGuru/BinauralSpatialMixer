@@ -64,10 +64,10 @@ public:
             getSenderMetadataFile (instanceId).deleteFile();
     }
 
-    void prepare (const juce::String& newInstanceId, int objectId)
+    void prepare (const juce::String& newInstanceId, int newObjectId)
     {
         setInstanceId (newInstanceId);
-        setObjectId (objectId);
+        setObjectId (newObjectId);
     }
 
     void setInstanceId (const juce::String& newInstanceId)

@@ -80,7 +80,7 @@ juce_add_plugin(BinuaralMix
     BUNDLE_ID "com.yourcompany.BinuaralMix"
     PLUGIN_MANUFACTURER_CODE Manu
     PLUGIN_CODE Kkp2
-    FORMATS AU VST3 Standalone
+    FORMATS AU VST3
     PRODUCT_NAME "BinuaralMix"
     PLUGIN_NAME "BinuaralMix"
     DESCRIPTION "BinuaralMix"
@@ -90,6 +90,7 @@ juce_add_plugin(BinuaralMix
     IS_MIDI_EFFECT FALSE
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
     NEEDS_WEB_BROWSER TRUE
+    NEEDS_WEBVIEW2 TRUE
     COPY_PLUGIN_AFTER_BUILD FALSE
     VST3_CATEGORIES Fx Spatial Stereo Surround)
 
@@ -125,7 +126,8 @@ binaural_apply_common_plugin_settings(BinuaralMix)
 
 target_compile_definitions(BinuaralMix
     PUBLIC
-        JUCE_WEB_BROWSER=1)
+        JUCE_WEB_BROWSER=1
+        $<$<PLATFORM_ID:Windows>:JUCE_USE_WIN_WEBVIEW2=1>)
 
 juce_add_plugin(BinuaralSender
     VERSION 1.0.0

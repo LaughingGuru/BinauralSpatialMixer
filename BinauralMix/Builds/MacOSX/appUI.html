@@ -23,8 +23,8 @@
 
         #app {
             display: grid;
-            grid-template-columns: 280px minmax(420px, 1fr) 260px;
-            grid-template-rows: 64px minmax(300px, 1fr) 170px;
+            grid-template-columns: 360px minmax(420px, 1fr) 260px;
+            grid-template-rows: 64px minmax(300px, 1fr);
             width: 100vw;
             height: 100vh;
             background: #161616;
@@ -79,7 +79,7 @@
 
         .object-grid {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 9px;
             padding: 16px;
         }
@@ -87,6 +87,7 @@
         .object-dot {
             width: 30px;
             height: 30px;
+            padding: 0;
             justify-self: center;
             border: 2px solid #28626b;
             border-radius: 50%;
@@ -95,8 +96,105 @@
                 #8cff38,
                 #159c28 45%,
                 #103f18 80%
-            );
-            box-shadow: 0 0 10px rgba(70, 255, 40, 0.35);
+          );
+         box-shadow:  0 0 3px rgba(100, 255, 40, 0.9); ;
+        }
+
+        .object-dot:hover,
+        .object-dot:focus-visible {
+            border-color: #b7ff83;
+            outline: none;
+         transform: scale(1.1);
+        }
+
+        .object-dot.selected {
+            border-color: #b7ff83;
+            opacity: 1 !important;
+            box-shadow:
+                0 0 10px #4cff20,
+                0 0 18px rgba(70, 255, 40, 0.9);
+           
+}
+
+        .object-dot.focused {
+            border-color: #fff;
+            box-shadow:
+                0 0 0 2px #168de2,
+                0 0 10px #4cff20,
+                0 0 20px rgba(70, 255, 40, 0.9);
+        }
+
+        .object-dot.audio-object::after {
+            content: "1";
+            display: block;
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 26px;
+            text-align: center;
+        }
+
+        .object-controls {
+            margin: 0 12px 16px;
+            padding: 12px;
+            background: #1d1d1d;
+            border: 1px solid #353535;
+        }
+
+        #objectControlsContainer {
+            flex: 0 1 auto;
+            min-height: 0;
+            max-height: 48%;
+            overflow-y: auto;
+        }
+
+        .object-controls[hidden] {
+            display: none;
+        }
+
+        .object-controls-title {
+            margin-bottom: 12px;
+            color: #8cff38;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .slider-control {
+            display: grid;
+            grid-template-columns: 70px minmax(90px, 1fr) 64px;
+            align-items: center;
+            gap: 8px;
+            margin-top: 9px;
+            color: #bbb;
+            font-size: 11px;
+        }
+
+        .slider-control input {
+            width: 100%;
+            accent-color: #8cff38;
+            cursor: pointer;
+        }
+
+        .slider-control select {
+            width: 100%;
+            min-width: 0;
+            padding: 4px 6px;
+            border: 1px solid #3d3d3d;
+            background: #242424;
+            color: #eee;
+            font-size: 11px;
+            cursor: pointer;
+        }
+
+        .slider-value {
+            min-width: 0;
+            color: #eee;
+            text-align: right;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-variant-numeric: tabular-nums;
         }
 
         .track-list {
@@ -107,7 +205,7 @@
 
         .track {
             display: grid;
-            grid-template-columns: 6px 1fr 38px;
+            grid-template-columns: 6px minmax(0, 1fr) 78px;
             align-items: center;
             height: 38px;
             border-bottom: 1px solid #2c2c2c;
@@ -121,16 +219,43 @@
 
         .track-name {
             padding-left: 10px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .track-meter {
+            position: relative;
             height: 22px;
             margin-right: 8px;
-            background: linear-gradient(to top, #24e329 70%, #182818 70%);
+            overflow: hidden;
+            background: #182818;
+            border: 1px solid #2b3b2b;
+        }
+
+        .track-meter-fill {
+            position: absolute;
+            inset: 0 auto 0 0;
+            width: 0%;
+            background: linear-gradient(90deg, #1fae30, #8cff38);
+            transition: width 80ms linear;
+        }
+
+        .track-meter-value {
+            position: relative;
+            z-index: 1;
+            display: block;
+            padding-right: 4px;
+            color: #dbe8d9;
+            font-size: 10px;
+            line-height: 20px;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
         }
 
         .center {
             position: relative;
+            grid-row: 2;
             min-width: 0;
             min-height: 0;
             overflow: hidden;
@@ -141,6 +266,45 @@
             display: block;
             width: 100%;
             height: 100%;
+        }
+
+        .coordinate-readout {
+            position: absolute;
+            top: 18px;
+            left: 18px;
+            min-width: 190px;
+            padding: 10px 12px;
+            background: rgba(20, 20, 20, 0.86);
+            border: 1px solid #465957;
+            color: #ddd;
+            font-size: 12px;
+            line-height: 1.55;
+            pointer-events: none;
+        }
+
+        .coordinate-readout strong {
+            display: block;
+            margin-bottom: 4px;
+            color: #8cff38;
+        }
+
+        .coordinate-values {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .axis-x {
+            color: #ff6868;
+        }
+
+        .axis-y {
+            color: #70ff70;
+        }
+
+        .axis-z {
+            color: #6ca8ff;
         }
 
         .view-controls {
@@ -167,7 +331,7 @@
 
         .right {
             display: grid;
-            grid-template-rows: 1fr 170px;
+            grid-template-rows: 330px minmax(200px, 1fr);
             min-height: 0;
             background: #121212;
             border-left: 1px solid #333;
@@ -175,77 +339,101 @@
 
         .speaker-panel {
             position: relative;
+            min-height: 0;
+            overflow: hidden;
             border-bottom: 1px solid #333;
+            background:
+                radial-gradient(circle at 50% 38%, rgba(140, 255, 56, 0.12), transparent 34%),
+                linear-gradient(180deg, #151b1b 0%, #101010 100%);
         }
 
-        .speaker {
+        #listenerPreview {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .listener-readout {
             position: absolute;
-            top: 35px;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: #7dff36;
-            box-shadow: 0 0 12px #4cff20;
+            right: 12px;
+            bottom: 12px;
+            left: 12px;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 6px;
+            padding: 9px 10px;
+            background: rgba(12, 14, 14, 0.82);
+            border: 1px solid #334240;
+            color: #cfd6d3;
+            font-size: 11px;
+            line-height: 1.35;
+            pointer-events: none;
         }
 
-        .speaker.left {
-            left: 50px;
+        .listener-object-name {
+            color: #8cff38;
+            font-weight: 700;
         }
 
-        .speaker.right {
-            right: 50px;
+        .listener-direction {
+            color: #f1f4f2;
+            font-variant-numeric: tabular-nums;
+            text-align: right;
         }
 
         .master-meter {
-            display: flex;
-            align-items: flex-end;
+            display: grid;
+            grid-template-columns: auto 24px 1fr;
+            align-items: end;
             justify-content: center;
             gap: 12px;
-            padding-bottom: 20px;
+            padding: 16px 18px 20px;
         }
 
         .db-scale {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 150px;
             color: #888;
             font-size: 10px;
-            line-height: 1.45;
+            line-height: 1;
+            text-align: right;
         }
 
         .meter {
             display: flex;
             align-items: flex-end;
             width: 24px;
-            height: 130px;
+            height: 150px;
             background: #222;
             border: 1px solid #333;
+            overflow: hidden;
         }
 
         .meter-fill {
             width: 100%;
-            height: 72%;
+            height: 6%;
             background: linear-gradient(to top, #2cff2c, #8cff38);
+            transition: height 80ms linear;
         }
 
-        .timeline {
-            position: relative;
-            grid-column: 2 / 3;
-            grid-row: 3;
-            overflow: hidden;
-            background: #252525;
-            border-top: 1px solid #3a3a3a;
-        }
-
-        .clip {
-            position: absolute;
-            height: 26px;
-            padding-left: 6px;
-            overflow: hidden;
-            background: #7130a8;
-            border: 1px solid #9854d8;
-            color: #fff;
+        .meter-readout {
+            align-self: center;
+            color: #cfd6d3;
             font-size: 11px;
-            line-height: 24px;
-            white-space: nowrap;
+            line-height: 1.7;
+            font-variant-numeric: tabular-nums;
         }
+
+        .meter-readout strong {
+            display: block;
+            margin-bottom: 6px;
+            color: #8cff38;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
     </style>
 
     <script type="importmap">
@@ -272,12 +460,24 @@
             <div class="section-title">Objects and Beds</div>
             <div class="object-grid" id="objectGrid"></div>
 
+            <div id="objectControlsContainer"></div>
+
             <div class="section-title">Tracks</div>
             <div class="track-list" id="trackList"></div>
         </aside>
 
         <main class="center">
             <canvas id="three"></canvas>
+
+            <div class="coordinate-readout" id="coordinateReadout" hidden>
+                <strong id="coordinateObjectName">Object 1</strong>
+                <div class="coordinate-values">
+                    <span class="axis-x">X: <span id="coordinateX">0.00</span> m</span>
+                    <span class="axis-y">Y: <span id="coordinateY">0.00</span> m</span>
+                    <span class="axis-z">Z: <span id="coordinateZ">-1.00</span> m</span>
+                </div>
+                <div>Relative to You; </div>
+            </div>
 
             <div class="view-controls">
                 <button type="button" class="active" data-view="free">Free</button>
@@ -288,22 +488,43 @@
 
         <aside class="right">
             <div class="speaker-panel">
-                <div class="speaker left"></div>
-                <div class="speaker right"></div>
+                <canvas id="listenerPreview"></canvas>
+                <div class="listener-readout">
+                    <span class="listener-object-name" id="listenerObjectName">Object 1</span>
+                    <span class="listener-direction" id="listenerDirection">Front 0°</span>
+                    <span>Relative to You</span>
+                    <span class="listener-direction" id="listenerElevation">0° elev</span>
+                </div>
             </div>
 
             <div class="master-meter">
                 <div class="db-scale">
-                    0<br>2<br>4<br>6<br>8<br>10<br>12<br>18<br>24<br>30<br>36<br>40
+                    <span>0</span>
+                    <span>-2</span>
+                    <span>-4</span>
+                    <span>-6</span>
+                    <span>-8</span>
+                    <span>-10</span>
+                    <span>-12</span>
+                    <span>-18</span>
+                    <span>-24</span>
+                    <span>-30</span>
+                    <span>-36</span>
+                    <span>-60</span>
                 </div>
 
                 <div class="meter">
                     <div class="meter-fill"></div>
                 </div>
+
+                <div class="meter-readout">
+                    <strong>Master RMS</strong>
+                    <div>L <span id="masterLeftRms">-60.0</span> dB</div>
+                    <div>R <span id="masterRightRms">-60.0</span> dB</div>
+                </div>
             </div>
         </aside>
 
-        <div class="timeline" id="timeline"></div>
     </div>
 
     <script type="module">
@@ -311,49 +532,423 @@
         import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
         const objectGrid = document.getElementById("objectGrid");
+        const objectControlsContainer = document.getElementById("objectControlsContainer");
+        const coordinateReadout = document.getElementById("coordinateReadout");
+        const coordinateObjectName = document.getElementById(
+            "coordinateObjectName"
+        );
+        const coordinateX = document.getElementById("coordinateX");
+        const coordinateY = document.getElementById("coordinateY");
+        const coordinateZ = document.getElementById("coordinateZ");
+        const masterMeterFill = document.querySelector(".meter-fill");
+        const listenerPreviewCanvas = document.getElementById("listenerPreview");
+        const listenerObjectName = document.getElementById("listenerObjectName");
+        const listenerDirection = document.getElementById("listenerDirection");
+        const listenerElevation = document.getElementById("listenerElevation");
+        const masterLeftRms = document.getElementById("masterLeftRms");
+        const masterRightRms = document.getElementById("masterRightRms");
+        const objectCount = 4;
+        const initialElevations = [0, 15, -15, 30];
+        const objectParameters = Array.from({ length: objectCount }, (_, index) => ({
+            azimuth: ((index * 47 + 180) % 360) - 180,
+            distance: index === 0 ? 1 : 2 + (index % 5) * 0.5,
+            elevation:
+                initialElevations[
+                    Math.floor(index / 5) % initialElevations.length
+                ],
+            size: 1,
+            room: 1,
+            enabled: index === 0
+        }));
+        const activeObjectIndices = new Set();
+        let selectedObjectIndex = null;
 
-        for (let i = 0; i < 50; i += 1) {
-            const dot = document.createElement("div");
+        function dbToMeterPercent(db) {
+            const clampedDb = Math.min(0, Math.max(-60, Number(db)));
+            return ((clampedDb + 60) / 60) * 100;
+        }
+
+        window.updateMasterVolume = (leftDb, rightDb) => {
+            if (!masterMeterFill) {
+                return;
+            }
+
+            const masterDb = Math.max(Number(leftDb), Number(rightDb));
+            masterMeterFill.style.height = `${dbToMeterPercent(masterDb)}%`;
+
+            if (masterLeftRms && masterRightRms) {
+                masterLeftRms.textContent = Number(leftDb).toFixed(1);
+                masterRightRms.textContent = Number(rightDb).toFixed(1);
+            }
+        };
+
+        function formatParameter(parameter, value) {
+            if (parameter === "distance") {
+                return `${Number(value).toFixed(1)} m`;
+            }
+
+            if (parameter === "size") {
+                return `${Number(value).toFixed(1)}x`;
+            }
+
+            if (parameter === "room") {
+                return ["Open Space", "Small Room", "Large Room"][Number(value)] ?? "Small Room";
+            }
+
+            return `${Math.round(Number(value))}°`;
+        }
+
+        function notifyAudioProcessor(objectIndex, parameter, value) {
+
+            const backend = window.__JUCE__?.backend;
+
+            if (backend) {
+                backend.emitEvent("spatialParameterChanged", {
+                    objectIndex,
+                    parameter,
+                    value: Number(value)
+                });
+            }
+            else if (!backend) {
+                return;
+            }
+        }
+
+        function createObjectControls(index)
+        {
+            const panel = document.createElement("div");
+
+            panel.className = "object-controls";
+            panel.id = `controls-${index}`;
+
+            panel.innerHTML = `
+                <div class="object-controls-title">
+                    Object ${index + 1}
+                </div>
+
+                <label class="slider-control">
+                    <span>Azimuth</span>
+                    <input
+                        type="range"
+                        min="-180"
+                        max="180"
+                        value="${objectParameters[index].azimuth}"
+                        data-object="${index}"
+                        data-parameter="azimuth"
+                    >
+                    <output class="slider-value">${formatParameter("azimuth", objectParameters[index].azimuth)}</output>
+                </label>
+
+                <label class="slider-control">
+                    <span>Distance</span>
+                    <input
+                        type="range"
+                        min="1"
+                        max="10"
+                        step="0.1"
+                        value="${objectParameters[index].distance}"
+                        data-object="${index}"
+                        data-parameter="distance"
+                    >
+                    <output class="slider-value">${formatParameter("distance", objectParameters[index].distance)}</output>
+                </label>
+
+                <label class="slider-control">
+                    <span>Elevation</span>
+                    <input
+                        type="range"
+                        min="-40"
+                        max="90"
+                        value="${objectParameters[index].elevation}"
+                        data-object="${index}"
+                        data-parameter="elevation"
+                    >
+                    <output class="slider-value">${formatParameter("elevation", objectParameters[index].elevation)}</output>
+                </label>
+            
+                <label class="slider-control">
+                    <span>Size</span>
+                    <input
+                        type="range"
+                        min="0.1"
+                        max="5"
+                        step="0.5"
+                        value="${objectParameters[index].size}"
+                        data-object="${index}"
+                        data-parameter="size"
+                    >
+                    <output class="slider-value">${formatParameter("size", objectParameters[index].size)}</output>
+                </label>
+
+                <label class="slider-control">
+                    <span>Room</span>
+                    <select
+                        data-object="${index}"
+                        data-parameter="room"
+                    >
+                        <option value="0" ${objectParameters[index].room === 0 ? "selected" : ""}>Open Space</option>
+                        <option value="1" ${objectParameters[index].room === 1 ? "selected" : ""}>Small Room</option>
+                        <option value="2" ${objectParameters[index].room === 2 ? "selected" : ""}>Large Room</option>
+                    </select>
+                    <output class="slider-value">${formatParameter("room", objectParameters[index].room)}</output>
+                </label>
+            `;
+
+            panel.querySelectorAll("input, select").forEach(input =>
+            {
+                input.addEventListener(input.tagName === "SELECT" ? "change" : "input", () =>
+                {
+                    const parameter = input.dataset.parameter;
+                    const value = Number(input.value);
+
+                    objectParameters[index][parameter] = value;
+
+                    notifyAudioProcessor(
+                        index,
+                        parameter,
+                        value
+                    );
+
+                    updateObjectVisibility(index);
+                    updateFocusedObject(index);
+
+                    const output =
+                        input.parentElement.querySelector("output");
+
+                    output.textContent =
+                        formatParameter(parameter, value);
+                });
+            });
+
+            return panel;
+        }
+
+        function setObjectEnabled(index, enabled, shouldNotify = false) {
+            const dot = objectGrid.children[index];
+
+            objectParameters[index].enabled = enabled;
+
+            if (enabled) {
+                if (!activeObjectIndices.has(index)) {
+                    activeObjectIndices.add(index);
+                    objectControlsContainer.appendChild(createObjectControls(index));
+                }
+
+                dot.classList.add("selected");
+                dot.setAttribute("aria-pressed", "true");
+                updateObjectVisibility(index);
+                updateFocusedObject(index);
+            }
+            else {
+                activeObjectIndices.delete(index);
+                document.getElementById(`controls-${index}`)?.remove();
+                dot.classList.remove("selected", "focused");
+                dot.setAttribute("aria-pressed", "false");
+                updateObjectVisibility(index);
+                selectNextActiveObject();
+            }
+
+            if (shouldNotify) {
+                notifyAudioProcessor(index, "enabled", enabled ? 1 : 0);
+            }
+        }
+
+        function toggleObject(index) {
+            setObjectEnabled(index, !activeObjectIndices.has(index), true);
+        }
+
+        function updateFocusedObject(index) {
+            selectedObjectIndex = index;
+
+            Array.from(objectGrid.children).forEach((dot, dotIndex) => {
+                dot.classList.toggle("focused", dotIndex === index);
+            });
+
+            updateSelectedObject();
+        }
+
+        function selectNextActiveObject() {
+            const nextActiveIndex =
+                activeObjectIndices.size > 0
+                    ? Array.from(activeObjectIndices).at(-1)
+                    : null;
+
+            if (nextActiveIndex === null) {
+                selectedObjectIndex = null;
+                coordinateReadout.hidden = true;
+                updateListenerPreview(null);
+
+                Array.from(objectGrid.children).forEach((dot) => {
+                    dot.classList.remove("focused");
+                });
+
+                return;
+            }
+
+            updateFocusedObject(nextActiveIndex);
+        }
+
+        window.setSpatialState = (state) => {
+            if (!state || !Array.isArray(state.objects)) {
+                return;
+            }
+
+            activeObjectIndices.clear();
+            objectControlsContainer.replaceChildren();
+
+            state.objects.slice(0, objectCount).forEach((objectState, index) => {
+                objectParameters[index] = {
+                    ...objectParameters[index],
+                    azimuth: Number(objectState.azimuth ?? objectParameters[index].azimuth),
+                    distance: Number(objectState.distance ?? objectParameters[index].distance),
+                    elevation: Number(objectState.elevation ?? objectParameters[index].elevation),
+                    size: Number(objectState.size ?? objectParameters[index].size),
+                    room: Number(objectState.room ?? objectParameters[index].room),
+                    enabled: Boolean(objectState.enabled)
+                };
+
+                const dot = objectGrid.children[index];
+                dot.classList.remove("selected", "focused");
+                dot.setAttribute("aria-pressed", "false");
+
+                if (objectParameters[index].enabled) {
+                    activeObjectIndices.add(index);
+                    objectControlsContainer.appendChild(createObjectControls(index));
+                    dot.classList.add("selected");
+                    dot.setAttribute("aria-pressed", "true");
+                }
+
+                updateObjectVisibility(index);
+            });
+
+            let nextSelectedObjectIndex = Number(state.selectedObjectIndex);
+
+            if (!activeObjectIndices.has(nextSelectedObjectIndex)) {
+                nextSelectedObjectIndex = activeObjectIndices.size > 0
+                    ? Array.from(activeObjectIndices).at(-1)
+                    : null;
+            }
+
+            if (nextSelectedObjectIndex === null) {
+                selectedObjectIndex = null;
+                coordinateReadout.hidden = true;
+                updateListenerPreview(null);
+
+                Array.from(objectGrid.children).forEach((dot) => {
+                    dot.classList.remove("focused");
+                });
+
+                return;
+            }
+
+            updateFocusedObject(nextSelectedObjectIndex);
+        };
+
+        for (let i = 0; i < objectCount; i += 1) {
+            const dot = document.createElement("button");
+            dot.type = "button";
             dot.className = "object-dot";
-            dot.style.opacity = Math.random() > 0.25 ? "1" : "0.35";
+
+            dot.classList.add("audio-object");
+            dot.title = `Object ${i + 1}: click to enable or mute`;
+
+            dot.setAttribute(
+                "aria-label",
+                `Toggle object ${i + 1}`
+            );
+            dot.setAttribute("aria-pressed", "false");
+            dot.addEventListener("click", () => toggleObject(i));
             objectGrid.appendChild(dot);
         }
 
-        const tracks = [
-            ["Top Telephone", "#29c9c2"],
-            ["Kick Ring", "#31c982"],
-            ["Whoosh", "#3dd889"],
-            ["Granular FX", "#27aa74"],
-            ["Bass", "#d56a35"],
-            ["Reesey Bass", "#ce7830"],
-            ["Leads", "#8842e5"],
-            ["Synth Lead FX", "#7f37d9"]
+        const trackList = document.getElementById("trackList");
+        const objectColors = [
+            "#29c9c2",
+            "#31c982",
+            "#d56a35",
+            "#8842e5",
+            "#d9b23b",
+            "#3f8bd9",
+            "#d94f82",
+            "#73d94f"
         ];
 
-        const trackList = document.getElementById("trackList");
-
-        tracks.forEach(([name, color]) => {
-            const row = document.createElement("div");
-            row.className = "track";
-            row.innerHTML = `
-                <div class="track-color" style="background: ${color}"></div>
-                <div class="track-name">${name}</div>
-                <div class="track-meter"></div>
-            `;
-            trackList.appendChild(row);
-        });
-
-        const timeline = document.getElementById("timeline");
-
-        for (let i = 0; i < 9; i += 1) {
-            const clip = document.createElement("div");
-            clip.className = "clip";
-            clip.textContent = "Hisham";
-            clip.style.left = `${90 + i * 95}px`;
-            clip.style.top = `${34 + (i % 2) * 36}px`;
-            clip.style.width = `${70 + Math.random() * 50}px`;
-            timeline.appendChild(clip);
+        function getObjectColor(objectId) {
+            const objectIndex = Math.max(0, Number(objectId || 1) - 1);
+            return objectColors[objectIndex % objectColors.length];
         }
+
+        function renderSenderTracks(senderTracks) {
+            if (!trackList) {
+                return;
+            }
+
+            const uniqueTracks = new Map();
+
+            senderTracks
+                .filter((track) => track && Number(track.objectId) > 0)
+                .forEach((track) => {
+                    const objectId = Number(track.objectId);
+                    const trackName = String(track.trackName || `Object ${objectId}`).trim();
+                    const instanceId = String(track.instanceId || `${objectId}:${trackName}`);
+
+                    uniqueTracks.set(instanceId, {
+                        objectId,
+                        trackName: trackName || `Object ${objectId}`,
+                        instanceId,
+                        rmsDb: Number.isFinite(Number(track.rmsDb))
+                            ? Number(track.rmsDb)
+                            : -60
+                    });
+                });
+
+            const sortedTracks = Array.from(uniqueTracks.values()).sort((a, b) => {
+                if (a.objectId !== b.objectId) {
+                    return a.objectId - b.objectId;
+                }
+
+                return a.trackName.localeCompare(b.trackName, undefined, {
+                    numeric: true,
+                    sensitivity: "base"
+                });
+            });
+
+            trackList.replaceChildren();
+
+            sortedTracks.forEach((track) => {
+                const row = document.createElement("div");
+                const color = getObjectColor(track.objectId);
+                const colorSwatch = document.createElement("div");
+                const name = document.createElement("div");
+                const meter = document.createElement("div");
+                const meterFill = document.createElement("div");
+                const meterValue = document.createElement("span");
+                const rmsDb = Math.min(0, Math.max(-60, Number(track.rmsDb)));
+
+                row.className = "track";
+                colorSwatch.className = "track-color";
+                colorSwatch.style.background = color;
+                name.className = "track-name";
+                name.textContent = track.trackName;
+                meter.className = "track-meter";
+                meterFill.className = "track-meter-fill";
+                meterFill.style.width = `${dbToMeterPercent(rmsDb)}%`;
+                meterValue.className = "track-meter-value";
+                meterValue.textContent = `${rmsDb.toFixed(1)}`;
+
+                meter.append(meterFill, meterValue);
+                row.append(colorSwatch, name, meter);
+                trackList.appendChild(row);
+            });
+        }
+
+        window.updateSenderTracks = (senderTracks) => {
+            if (Array.isArray(senderTracks)) {
+                renderSenderTracks(senderTracks);
+            }
+        };
+
+        renderSenderTracks([]);
 
         const canvas = document.getElementById("three");
         const renderer = new THREE.WebGLRenderer({
@@ -364,20 +959,144 @@
 
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
+        const listenerPreviewRenderer = new THREE.WebGLRenderer({
+            canvas: listenerPreviewCanvas,
+            antialias: true,
+            alpha: true
+        });
+
+        listenerPreviewRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x181818);
 
         const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-        camera.position.set(6, 4.5, 7);
+        camera.position.set(16, 12, 18);
+
+        const listenerPreviewScene = new THREE.Scene();
+        const listenerPreviewCamera = new THREE.PerspectiveCamera(38, 1, 0.1, 20);
+        listenerPreviewCamera.position.set(0, 0.95, 7.2);
+        listenerPreviewCamera.lookAt(0, 0.35, 0);
+
+        const previewHeadGroup = new THREE.Group();
+        previewHeadGroup.scale.setScalar(0.72);
+        previewHeadGroup.position.y = -0.1;
+        listenerPreviewScene.add(previewHeadGroup);
+
+        const previewSkinMaterial = new THREE.MeshStandardMaterial({
+            color: 0x2fc9ff,
+            emissive: 0x06394a,
+            roughness: 0.4,
+            metalness: 0.05
+        });
+
+        const previewDarkMaterial = new THREE.MeshStandardMaterial({
+            color: 0x071114,
+            emissive: 0x020809,
+            roughness: 0.28,
+            metalness: 0.25
+        });
+
+        const previewGlowMaterial = new THREE.MeshStandardMaterial({
+            color: 0x8cff38,
+            emissive: 0x4cff20,
+            roughness: 0.25
+        });
+
+        const previewHead = new THREE.Mesh(
+            new THREE.SphereGeometry(0.66, 36, 36),
+            previewSkinMaterial
+        );
+        previewHead.scale.set(0.88, 1.08, 0.92);
+        previewHead.position.y = 0.04;
+        previewHeadGroup.add(previewHead);
+
+        const previewNeck = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.24, 0.34, 0.55, 28),
+            previewSkinMaterial
+        );
+        previewNeck.position.y = -0.68;
+        previewHeadGroup.add(previewNeck);
+
+        const previewNose = new THREE.Mesh(
+            new THREE.ConeGeometry(0.11, 0.34, 24),
+            previewSkinMaterial
+        );
+        previewNose.rotation.x = -Math.PI / 2;
+        previewNose.position.set(0, 0.03, -0.66);
+        previewHeadGroup.add(previewNose);
+
+        const previewHeadphoneBand = new THREE.Mesh(
+            new THREE.TorusGeometry(0.72, 0.045, 14, 72),
+            previewDarkMaterial
+        );
+        previewHeadphoneBand.scale.y = 1.2;
+        previewHeadphoneBand.position.y = 0.08;
+        previewHeadGroup.add(previewHeadphoneBand);
+
+        [-1, 1].forEach((side) => {
+            const cup = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.2, 0.24, 0.18, 32),
+                previewDarkMaterial
+            );
+            cup.rotation.z = Math.PI / 2;
+            cup.position.set(side * 0.68, -0.02, 0);
+            previewHeadGroup.add(cup);
+
+            const pad = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.16, 0.18, 0.05, 32),
+                previewGlowMaterial
+            );
+            pad.rotation.z = Math.PI / 2;
+            pad.position.set(side * 0.58, -0.02, 0);
+            previewHeadGroup.add(pad);
+        });
+
+        const previewRing = new THREE.Mesh(
+            new THREE.TorusGeometry(1.35, 0.012, 8, 96),
+            new THREE.MeshBasicMaterial({
+                color: 0x335958,
+                transparent: true,
+                opacity: 0.9
+            })
+        );
+        previewRing.rotation.x = Math.PI / 2;
+        previewRing.position.y = -0.1;
+        listenerPreviewScene.add(previewRing);
+
+        const sourceMarker = new THREE.Mesh(
+            new THREE.SphereGeometry(0.12, 28, 28),
+            previewGlowMaterial
+        );
+        listenerPreviewScene.add(sourceMarker);
+
+        const sourceLine = new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(),
+                new THREE.Vector3(0, 0, -1)
+            ]),
+            new THREE.LineBasicMaterial({
+                color: 0x8cff38,
+                transparent: true,
+                opacity: 0.75
+            })
+        );
+        listenerPreviewScene.add(sourceLine);
+
+        listenerPreviewScene.add(new THREE.AmbientLight(0x8fb8c0, 1.45));
+
+        const previewLight = new THREE.PointLight(0xffffff, 1.7);
+        previewLight.position.set(2.4, 3.4, 3.2);
+        listenerPreviewScene.add(previewLight);
 
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
-        controls.target.set(0, 1.4, 0);
+        controls.target.set(0, 0, 0);
 
         const roomSize = {
-            x: 6,
-            y: 3.2,
-            z: 4
+            x: 20,
+            y: 20,
+            z: 20
         };
 
         const roomGeometry = new THREE.BoxGeometry(
@@ -389,53 +1108,61 @@
         const roomMaterial = new THREE.MeshBasicMaterial({
             color: 0x8ca7a2,
             transparent: true,
-            opacity: 0.18,
+            opacity: 0.15,
             side: THREE.BackSide,
             depthWrite: false
         });
 
         const room = new THREE.Mesh(roomGeometry, roomMaterial);
-        room.position.y = roomSize.y / 2;
         scene.add(room);
 
         const edges = new THREE.EdgesGeometry(roomGeometry);
         const edgeMaterial = new THREE.LineBasicMaterial({
             color: 0x56706e,
             transparent: true,
-            opacity: 0.9
+            opacity: 0.5
         });
 
         const wireframe = new THREE.LineSegments(edges, edgeMaterial);
-        wireframe.position.copy(room.position);
         scene.add(wireframe);
 
-        const grid = new THREE.GridHelper(6, 6, 0x425957, 0x2b3534);
-        grid.position.y = 0.01;
+        const grid = new THREE.GridHelper(20, 20, 0x425957, 0x2b3534);
+        grid.position.y = -10;
         scene.add(grid);
 
-        const listener = new THREE.Mesh(
-            new THREE.SphereGeometry(0.22, 32, 32),
-            new THREE.MeshStandardMaterial({
-                color: 0xffff00,
-                roughness: 0.25,
-                metalness: 0.1,
-                emissiveIntensity: 1.5
-            })
+
+        const listener = new THREE.Group();
+
+        // Body
+        const body = new THREE.Mesh(
+         new THREE.CapsuleGeometry(0.3, 0.5, 8, 16),
+         new THREE.MeshStandardMaterial({
+        color: 0xffff00,
+        roughness: 0.25,
+        metalness: 0.1,
+        emissive: 0xffff00
+         })
         );
 
-        listener.position.set(0, 1.1, 0);
+       listener.add(body);
+       body.rotation.z = Math.PI / 2;
+
+       // Head
+       const head = new THREE.Mesh(
+        new THREE.SphereGeometry(0.25, 32, 32),
+        body.material
+       );
+       head.position.y = 0.75;
+       listener.add(head);
+
+        listener.position.set(0, 0, 0);
         scene.add(listener);
+
 
         const objectMaterial = new THREE.MeshStandardMaterial({
             color: 0x3cff26,
-            emissive: 0x127a14,
+            emissive: 0x3cff26,
             roughness: 0.35
-        });
-
-        const inactiveMaterial = new THREE.MeshStandardMaterial({
-            color: 0xb9b9b9,
-            emissive: 0x111111,
-            roughness: 0.5
         });
 
         const objects = [];
@@ -448,7 +1175,7 @@
             const context = labelCanvas.getContext("2d");
             context.clearRect(0, 0, labelCanvas.width, labelCanvas.height);
             context.fillStyle = "#d8d8d8";
-            context.font = "28px Arial";
+            context.font = "30px Arial";
             context.textAlign = "center";
             context.fillText(text, 64, 38);
 
@@ -464,40 +1191,150 @@
             return sprite;
         }
 
-        const listenerLabel = makeLabel("You");
-        listenerLabel.position.set(0, 1.55, 0);
+        const listenerLabel = makeLabel("KIERA");
+        listenerLabel.position.set(0, 1.2, 0);
         scene.add(listenerLabel);
 
-        for (let i = 0; i < 24; i += 1) {
-            const active = Math.random() > 0.18;
-            const baseY = THREE.MathUtils.randFloat(0.35, roomSize.y * 0.9);
-
+        for (let i = 0; i < objectParameters.length; i += 1) {
             const sphere = new THREE.Mesh(
-                new THREE.SphereGeometry(active ? 0.14 : 0.11, 24, 24),
-                active ? objectMaterial : inactiveMaterial
+                new THREE.SphereGeometry(0.22, 24, 24),
+                objectMaterial
             );
+            sphere.visible = false;
 
-            sphere.position.set(
-                THREE.MathUtils.randFloatSpread(roomSize.x * 0.85),
-                baseY,
-                THREE.MathUtils.randFloatSpread(roomSize.z * 0.85)
-            );
-
-            sphere.userData.baseY = baseY;
-            sphere.userData.phase = Math.random() * Math.PI * 2;
-
-            const label = makeLabel(String(i + 11));
-            label.position.copy(sphere.position);
-            label.position.y -= 0.28;
+            const label = makeLabel(String(i + 1));
+            label.visible = false;
             sphere.userData.label = label;
+
+            const lineGeometry = new THREE.BufferGeometry().setFromPoints([
+                listener.position,
+                new THREE.Vector3(0, 0, -1)
+            ]);
+            const line = new THREE.Line(
+                lineGeometry,
+                new THREE.LineBasicMaterial({
+                    color: 0x8cff38,
+                    transparent: true,
+                    opacity: 0.55
+                })
+            );
+            line.visible = false;
+            sphere.userData.line = line;
 
             objects.push(sphere);
             scene.add(sphere);
             scene.add(label);
+            scene.add(line);
         }
 
+        function sphericalToCartesian({ azimuth, distance, elevation }) {
+            const azimuthRadians = THREE.MathUtils.degToRad(azimuth);
+            const elevationRadians = THREE.MathUtils.degToRad(elevation);
+            const horizontalDistance = distance * Math.cos(elevationRadians);
+
+            return new THREE.Vector3(
+                horizontalDistance * Math.sin(azimuthRadians),
+                distance * Math.sin(elevationRadians),
+                -horizontalDistance * Math.cos(azimuthRadians)
+            );
+        }
+
+        function formatDirectionLabel(azimuth) {
+            const absoluteAzimuth = Math.abs(azimuth);
+
+            if (absoluteAzimuth < 22.5) {
+                return "Front";
+            }
+
+            if (absoluteAzimuth > 157.5) {
+                return "Back";
+            }
+
+            if (azimuth > 0) {
+                return absoluteAzimuth > 112.5 ? "Back Right" : "Front Right";
+            }
+
+            return absoluteAzimuth > 112.5 ? "Back Left" : "Front Left";
+        }
+
+        function updateListenerPreview(index) {
+            const hasSelectedObject = index !== null && objectParameters[index];
+
+            sourceMarker.visible = hasSelectedObject;
+            sourceLine.visible = hasSelectedObject;
+
+            if (!hasSelectedObject) {
+                listenerObjectName.textContent = "No object";
+                listenerDirection.textContent = "--";
+                listenerElevation.textContent = "--";
+                return;
+            }
+
+            const parameters = objectParameters[index];
+            const position = sphericalToCartesian(parameters);
+            const radius = Math.min(1.42, 0.62 + parameters.distance * 0.12);
+            const previewPosition = position.clone().normalize().multiplyScalar(radius);
+
+            sourceMarker.position.copy(previewPosition);
+            sourceLine.geometry.setFromPoints([
+                new THREE.Vector3(0, -0.1, 0),
+                sourceMarker.position
+            ]);
+
+            listenerObjectName.textContent = `Object ${index + 1}`;
+            listenerDirection.textContent =
+                `${formatDirectionLabel(parameters.azimuth)} ${Math.round(parameters.azimuth)}°`;
+            listenerElevation.textContent =
+                `${Math.round(parameters.elevation)}° elev`;
+        }
+
+        function updateObjectVisibility(index) {
+            if (objects.length === 0) {
+                return;
+            }
+
+            const object = objects[index];
+            const active = activeObjectIndices.has(index);
+            object.visible = active;
+            object.userData.label.visible = active;
+            object.userData.line.visible = active;
+            object.scale.setScalar(objectParameters[index].size);
+
+            const position = sphericalToCartesian(
+                objectParameters[index]
+            );
+
+            object.position.copy(listener.position).add(position);
+            object.userData.label.position.copy(object.position);
+            object.userData.label.position.y += 0.5;
+            object.userData.line.geometry.setFromPoints([
+                listener.position,
+                object.position
+            ]);
+        }
+
+        function updateSelectedObject() {
+            if (selectedObjectIndex === null || objects.length === 0) {
+                return;
+            }
+
+            updateObjectVisibility(selectedObjectIndex);
+            const position = sphericalToCartesian(
+                objectParameters[selectedObjectIndex]
+            );
+            coordinateReadout.hidden = false;
+            coordinateObjectName.textContent =
+                `Object ${selectedObjectIndex + 1}`;
+            coordinateX.textContent = position.x.toFixed(2);
+            coordinateY.textContent = position.y.toFixed(2);
+            coordinateZ.textContent = position.z.toFixed(2);
+            updateListenerPreview(selectedObjectIndex);
+        }
+
+        setObjectEnabled(0, true, false);
+
         const pointLight = new THREE.PointLight(0xffffff, 1.2);
-        pointLight.position.set(2, 5, 4);
+        pointLight.position.set(5, 8, 6);
         scene.add(pointLight);
 
         scene.add(new THREE.AmbientLight(0x667777, 1.5));
@@ -517,6 +1354,21 @@
                 camera.aspect = width / height;
                 camera.updateProjectionMatrix();
             }
+
+            const previewWidth = Math.max(listenerPreviewCanvas.clientWidth, 1);
+            const previewHeight = Math.max(listenerPreviewCanvas.clientHeight, 1);
+            const previewPixelRatio = listenerPreviewRenderer.getPixelRatio();
+            const previewTargetWidth = Math.floor(previewWidth * previewPixelRatio);
+            const previewTargetHeight = Math.floor(previewHeight * previewPixelRatio);
+
+            if (
+                listenerPreviewCanvas.width !== previewTargetWidth ||
+                listenerPreviewCanvas.height !== previewTargetHeight
+            ) {
+                listenerPreviewRenderer.setSize(previewWidth, previewHeight, false);
+                listenerPreviewCamera.aspect = previewWidth / previewHeight;
+                listenerPreviewCamera.updateProjectionMatrix();
+            }
         }
 
         document.querySelectorAll("[data-view]").forEach((button) => {
@@ -528,14 +1380,14 @@
                 button.classList.add("active");
 
                 if (button.dataset.view === "top") {
-                    camera.position.set(0, 8, 0.01);
+                    camera.position.set(0, 24, 0.01);
                 } else if (button.dataset.view === "rear") {
-                    camera.position.set(0, 2.5, -8);
+                    camera.position.set(0, 5, -24);
                 } else {
-                    camera.position.set(6, 4.5, 7);
+                    camera.position.set(16, 12, 18);
                 }
 
-                controls.target.set(0, 1.4, 0);
+                controls.target.set(0, 0, 0);
                 controls.update();
             });
         });
@@ -543,17 +1395,14 @@
         function animate(time) {
             resizeRenderer();
 
-            objects.forEach((object) => {
-                const phase = time * 0.001 + object.userData.phase;
-                object.position.y =
-                    object.userData.baseY + Math.sin(phase) * 0.03;
-
-                object.userData.label.position.copy(object.position);
-                object.userData.label.position.y -= 0.28;
-            });
-
             controls.update();
             renderer.render(scene, camera);
+            previewHeadGroup.rotation.y = Math.sin(time * 0.00045) * 0.08;
+            sourceMarker.scale.setScalar(1 + Math.sin(time * 0.006) * 0.12);
+            listenerPreviewRenderer.render(
+                listenerPreviewScene,
+                listenerPreviewCamera
+            );
             requestAnimationFrame(animate);
         }
 
