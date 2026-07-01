@@ -125,7 +125,7 @@
         }
 
         .object-dot.audio-object::after {
-            content: "1";
+            content: attr(data-label);
             display: block;
             color: #fff;
             font-size: 11px;
@@ -383,7 +383,7 @@
 
         .master-meter {
             display: grid;
-            grid-template-columns: auto 24px 1fr;
+            grid-template-columns: auto auto 1fr;
             align-items: end;
             justify-content: center;
             gap: 12px;
@@ -401,10 +401,26 @@
             text-align: right;
         }
 
+        .meter-pair {
+            display: flex;
+            align-items: flex-end;
+            gap: 6px;
+        }
+
+        .meter-channel {
+            display: grid;
+            grid-template-rows: 150px auto;
+            gap: 5px;
+            justify-items: center;
+            color: #aaa;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
         .meter {
             display: flex;
             align-items: flex-end;
-            width: 24px;
+            width: 18px;
             height: 150px;
             background: #222;
             border: 1px solid #333;
@@ -513,8 +529,19 @@
                     <span>-60</span>
                 </div>
 
-                <div class="meter">
-                    <div class="meter-fill"></div>
+                <div class="meter-pair" aria-label="Master left and right RMS meters">
+                    <div class="meter-channel">
+                        <div class="meter">
+                            <div class="meter-fill" id="masterLeftMeter"></div>
+                        </div>
+                        <span>L</span>
+                    </div>
+                    <div class="meter-channel">
+                        <div class="meter">
+                            <div class="meter-fill" id="masterRightMeter"></div>
+                        </div>
+                        <span>R</span>
+                    </div>
                 </div>
 
                 <div class="meter-readout">
@@ -540,7 +567,8 @@
         const coordinateX = document.getElementById("coordinateX");
         const coordinateY = document.getElementById("coordinateY");
         const coordinateZ = document.getElementById("coordinateZ");
-        const masterMeterFill = document.querySelector(".meter-fill");
+        const masterLeftMeter = document.getElementById("masterLeftMeter");
+        const masterRightMeter = document.getElementById("masterRightMeter");
         const listenerPreviewCanvas = document.getElementById("listenerPreview");
         const listenerObjectName = document.getElementById("listenerObjectName");
         const listenerDirection = document.getElementById("listenerDirection");
@@ -569,12 +597,13 @@
         }
 
         window.updateMasterVolume = (leftDb, rightDb) => {
-            if (!masterMeterFill) {
-                return;
+            if (masterLeftMeter) {
+                masterLeftMeter.style.height = `${dbToMeterPercent(leftDb)}%`;
             }
 
-            const masterDb = Math.max(Number(leftDb), Number(rightDb));
-            masterMeterFill.style.height = `${dbToMeterPercent(masterDb)}%`;
+            if (masterRightMeter) {
+                masterRightMeter.style.height = `${dbToMeterPercent(rightDb)}%`;
+            }
 
             if (masterLeftRms && masterRightRms) {
                 masterLeftRms.textContent = Number(leftDb).toFixed(1);
@@ -850,6 +879,7 @@
             dot.className = "object-dot";
 
             dot.classList.add("audio-object");
+            dot.dataset.label = String(i + 1);
             dot.title = `Object ${i + 1}: click to enable or mute`;
 
             dot.setAttribute(

@@ -9,7 +9,7 @@
 namespace BinaryData
 {
     extern const char*   appUI_html;
-    const int            appUI_htmlSize = 45971;
+    const int            appUI_htmlSize = 47054;
 
     extern const char*   MIT_KEMAR_normal_pinna_sofa;
     const int            MIT_KEMAR_normal_pinna_sofaSize = 1173158;

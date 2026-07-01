@@ -921,7 +921,6 @@ void BinuaralMixAudioProcessor::prepareImpulseResponse (BinuaralMixAudioProcesso
     MYSOFA_EASY* sofa)
 {
     const auto sampleRate = static_cast<float> (currentSampleRate.load());
-    const auto roomSettings = getRoomSettings (room);
     
     auto applyFractionalDelay = [] (std::vector<float>& ir, float frac) {
         if (frac <= 0.0f)
