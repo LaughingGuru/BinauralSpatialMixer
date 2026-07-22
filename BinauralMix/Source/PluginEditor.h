@@ -15,14 +15,15 @@ public:
 private:
     void timerCallback() override;
     void pushStateToWebView();
+    void pushAutomationStateToWebView();
 
     static juce::WebBrowserComponent::Options makeWebViewOptions (
         BinuaralMixAudioProcessor&);
 
     BinuaralMixAudioProcessor& audioProcessor;
     juce::WebBrowserComponent webView;
-    int senderMetadataTick = 0;
     int stateSyncTicksRemaining = 10;
+    int automationStateTick = 0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (
         BinuaralMixAudioProcessorEditor)

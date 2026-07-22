@@ -103,12 +103,29 @@ void BinuaralMixAudioProcessorEditor::pushStateToWebView()
         + ");");
 }
 
+void BinuaralMixAudioProcessorEditor::pushAutomationStateToWebView()
+{
+    webView.evaluateJavascript (
+        "window.updateAutomatedSpatialState?.("
+        + juce::JSON::toString (audioProcessor.getWebViewState(), true)
+        + ");");
+}
+
 void BinuaralMixAudioProcessorEditor::timerCallback()
 {
     if (stateSyncTicksRemaining > 0)
     {
         pushStateToWebView();
         --stateSyncTicksRemaining;
+    }
+
+    // Mirror host automation into the custom web interface at 15 Hz. This is
+    // frequent enough for smooth object motion without rebuilding the UI or
+    // sending JavaScript on every audio/control update.
+    if (++automationStateTick >= 2)
+    {
+        automationStateTick = 0;
+        pushAutomationStateToWebView();
     }
 
     const auto leftRMS = audioProcessor.getLeftRMS();
@@ -120,34 +137,4 @@ void BinuaralMixAudioProcessorEditor::timerCallback()
                << rightRMS << ");";
 
     webView.evaluateJavascript (javascript);
-
-    if (++senderMetadataTick < 2)
-        return;
-
-    senderMetadataTick = 0;
-
-    juce::Array<juce::var> trackValues;
-
-    for (const auto& metadata : BinuaralTransport::readAllSenderMetadata())
-    {
-        auto trackObject = std::make_unique<juce::DynamicObject>();
-        trackObject->setProperty ("objectId", metadata.objectId);
-        trackObject->setProperty ("instanceId", metadata.instanceId);
-        trackObject->setProperty (
-            "rmsDb",
-            audioProcessor.getObjectRMS (
-                static_cast<size_t> (juce::jmax (0, metadata.objectId - 1))));
-        trackObject->setProperty (
-            "trackName",
-            metadata.trackName.isNotEmpty()
-                ? metadata.trackName
-                : "Object " + juce::String (metadata.objectId));
-
-        trackValues.add (juce::var (trackObject.release()));
-    }
-
-    webView.evaluateJavascript (
-        "window.updateSenderTracks?.("
-        + juce::JSON::toString (juce::var (trackValues), true)
-        + ");");
 }

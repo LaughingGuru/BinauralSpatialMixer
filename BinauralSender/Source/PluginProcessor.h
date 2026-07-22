@@ -3,11 +3,12 @@
 #include <JuceHeader.h>
 #include "SharedObjectAudioTransport.h"
 
-class BinuaralSenderAudioProcessor final : public juce::AudioProcessor
+class BinuaralSenderAudioProcessor final : public juce::AudioProcessor,
+                                           private juce::Timer
 {
 public:
     BinuaralSenderAudioProcessor();
-    ~BinuaralSenderAudioProcessor() override = default;
+    ~BinuaralSenderAudioProcessor() override;
 
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
     void releaseResources() override {}
@@ -49,6 +50,7 @@ public:
     void publishMetadataNow();
 
 private:
+    void timerCallback() override;
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     int getObjectId() const;
     void ensureSenderInstanceId();

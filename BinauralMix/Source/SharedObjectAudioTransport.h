@@ -9,6 +9,7 @@ namespace BinuaralTransport
 constexpr int maxObjects = 16;
 constexpr int maxTrackNameBytes = 64;
 constexpr int maxInstanceIdBytes = 64;
+constexpr uint32_t senderTimeoutMilliseconds = 5000;
 constexpr uint32_t magic = 0x424E534D; // BNSM
 
 struct alignas (64) SharedBlock
@@ -18,6 +19,7 @@ struct alignas (64) SharedBlock
     int32_t objectId = 1;
     char instanceId[maxInstanceIdBytes] {};
     char trackName[maxTrackNameBytes] {};
+    std::atomic<uint32_t> heartbeatMilliseconds { 0 };
 };
 
 inline juce::File getSenderMetadataDirectory()
@@ -61,7 +63,11 @@ public:
     ~Sender()
     {
         if (instanceId.isNotEmpty())
+        {
+            block = nullptr;
+            mappedFile.reset();
             getSenderMetadataFile (instanceId).deleteFile();
+        }
     }
 
     void prepare (const juce::String& newInstanceId, int newObjectId)
@@ -77,9 +83,14 @@ public:
         if (safeId == instanceId && block != nullptr)
             return;
 
-        instanceId = safeId;
+        const auto previousInstanceId = instanceId;
         mappedFile.reset();
         block = nullptr;
+
+        if (previousInstanceId.isNotEmpty())
+            getSenderMetadataFile (previousInstanceId).deleteFile();
+
+        instanceId = safeId;
         openMetadataFile();
     }
 
@@ -151,6 +162,15 @@ public:
                          static_cast<int> (trackName.getNumBytesAsUTF8()))));
 
         block->sequence.store ((nextSequence + 1u) & ~1u, std::memory_order_release);
+        refreshHeartbeat();
+    }
+
+    void refreshHeartbeat() noexcept
+    {
+        if (block != nullptr && block->magicNumber == magic)
+            block->heartbeatMilliseconds.store (
+                juce::Time::getMillisecondCounter(),
+                std::memory_order_release);
     }
 
 private:
@@ -227,28 +247,53 @@ inline juce::Array<ReceivedBlock> readAllSenderMetadata()
     for (const auto& file : files)
     {
         if (file.getSize() != static_cast<juce::int64> (sizeof (SharedBlock)))
+        {
+            file.deleteFile();
             continue;
+        }
 
-        juce::MemoryMappedFile mappedFile (file, juce::MemoryMappedFile::readOnly, false);
-        const auto* block = static_cast<const SharedBlock*> (mappedFile.getData());
+        bool deleteStaleFile = false;
 
-        if (block == nullptr || block->magicNumber != magic)
-            continue;
+        {
+            juce::MemoryMappedFile mappedFile (file, juce::MemoryMappedFile::readOnly, false);
+            const auto* block = static_cast<const SharedBlock*> (mappedFile.getData());
 
-        const auto sequenceBefore = block->sequence.load (std::memory_order_acquire);
+            if (block == nullptr || block->magicNumber != magic)
+            {
+                deleteStaleFile = true;
+            }
+            else
+            {
+                const auto heartbeat = block->heartbeatMilliseconds.load (
+                    std::memory_order_acquire);
+                const auto age = juce::Time::getMillisecondCounter() - heartbeat;
 
-        if ((sequenceBefore & 1u) != 0u)
-            continue;
+                if (heartbeat == 0 || age > senderTimeoutMilliseconds)
+                {
+                    deleteStaleFile = true;
+                }
+                else
+                {
+                    const auto sequenceBefore = block->sequence.load (std::memory_order_acquire);
 
-        ReceivedBlock metadata;
-        metadata.objectId = juce::jlimit (1, maxObjects, static_cast<int> (block->objectId));
-        metadata.instanceId = juce::String::fromUTF8 (block->instanceId, maxInstanceIdBytes);
-        metadata.trackName = juce::String::fromUTF8 (block->trackName, maxTrackNameBytes).trim();
+                    if ((sequenceBefore & 1u) == 0u)
+                    {
+                        ReceivedBlock metadata;
+                        metadata.objectId = juce::jlimit (1, maxObjects, static_cast<int> (block->objectId));
+                        metadata.instanceId = juce::String::fromUTF8 (block->instanceId, maxInstanceIdBytes);
+                        metadata.trackName = juce::String::fromUTF8 (block->trackName, maxTrackNameBytes).trim();
 
-        const auto sequenceAfter = block->sequence.load (std::memory_order_acquire);
+                        const auto sequenceAfter = block->sequence.load (std::memory_order_acquire);
 
-        if (sequenceBefore == sequenceAfter && (sequenceAfter & 1u) == 0u)
-            results.add (metadata);
+                        if (sequenceBefore == sequenceAfter && (sequenceAfter & 1u) == 0u)
+                            results.add (metadata);
+                    }
+                }
+            }
+        }
+
+        if (deleteStaleFile)
+            file.deleteFile();
     }
 
     struct MetadataComparator

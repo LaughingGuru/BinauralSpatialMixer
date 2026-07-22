@@ -161,11 +161,11 @@
  #define JucePlugin_ARACompatibleArchiveIDs  ""
 #endif
 #ifndef  JucePlugin_MaxNumInputChannels
- #define JucePlugin_MaxNumInputChannels    8
+ #define JucePlugin_MaxNumInputChannels    12
 #endif
 #ifndef  JucePlugin_MaxNumOutputChannels
  #define JucePlugin_MaxNumOutputChannels   2
 #endif
 #ifndef  JucePlugin_PreferredChannelConfigurations
- #define JucePlugin_PreferredChannelConfigurations  {8,2}
+ #define JucePlugin_PreferredChannelConfigurations  {12,2}
 #endif

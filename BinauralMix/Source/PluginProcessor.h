@@ -66,7 +66,8 @@ public:
     static constexpr auto sizeParameterId = "size";
     static constexpr auto roomParameterId = "room";
     static constexpr auto enabledParameterId = "enabled";
-    static constexpr size_t numSpatialObjects = 4;
+    static constexpr size_t numSpatialObjects = 6;
+    static constexpr int numInputChannels = static_cast<int> (numSpatialObjects * 2);
 
 private:
     
@@ -75,6 +76,16 @@ private:
         juce::AudioBuffer<float> left;
         juce::AudioBuffer<float> right;
         int lengthInSamples = 0;
+    };
+
+    struct ImpulseParameterSnapshot
+    {
+        bool valid = false;
+        float azimuth = 0.0f;
+        float elevation = 0.0f;
+        float distance = 1.0f;
+        float size = 1.0f;
+        int room = 1;
     };
     
     struct SpatialObject
@@ -123,6 +134,7 @@ private:
         
         bool usingConvolverA = true;
         std::atomic<bool> crossfading { false };
+        bool crossfadingFromDry = false;
         
         float crossfadePosition = 1.0f;
         float crossfadeIncrement = 0.0f;
@@ -146,6 +158,9 @@ private:
     void updateObjectsFromParameters();
     void setAutomatableObjectParameter (int objectIndex, const juce::String& parameterId, float value);
     void consumePendingImpulseResponse();
+    bool ensureOfflineSofaIsOpen();
+    void closeOfflineSofa();
+    void prepareOfflineImpulseResponses();
     void prepareImpulseResponse (SpatialObject& object,
                                  float azimuthDegrees,
                                  float elevationDegrees,
@@ -157,6 +172,10 @@ private:
     
     std::atomic<double> currentSampleRate { 44100.0 };
     std::atomic<int> currentIrLength { 0 };
+
+    MYSOFA_EASY* offlineSofa = nullptr;
+    int offlineFilterLength = 0;
+    std::array<ImpulseParameterSnapshot, numSpatialObjects> offlineSnapshots {};
 
     int maximumBlockSize = 0;
 

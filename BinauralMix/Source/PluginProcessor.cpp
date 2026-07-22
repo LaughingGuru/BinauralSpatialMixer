@@ -73,7 +73,7 @@ float wrapAzimuthDegrees (float azimuth)
 
 BinuaralMixAudioProcessor::BinuaralMixAudioProcessor()
     : AudioProcessor (BusesProperties()
-                       .withInput ("Input", juce::AudioChannelSet::discreteChannels (8), true)
+                       .withInput ("Input", juce::AudioChannelSet::discreteChannels (numInputChannels), true)
                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
       juce::Thread ("SOFA HRIR Loader"),
       parameters (*this, nullptr, parameterTreeId, createParameterLayout())
@@ -95,7 +95,9 @@ BinuaralMixAudioProcessor::createParameterLayout()
         0.0f,
         47.0f,
         94.0f,
-        141.0f
+        141.0f,
+        -172.0f,
+        -125.0f
     }};
 
     const std::array<float, numSpatialObjects> defaultDistances
@@ -103,7 +105,9 @@ BinuaralMixAudioProcessor::createParameterLayout()
         1.4f,
         2.5f,
         3.0f,
-        3.5f
+        3.5f,
+        4.0f,
+        4.5f
     }};
 
     const std::array<float, numSpatialObjects> defaultElevations
@@ -111,7 +115,9 @@ BinuaralMixAudioProcessor::createParameterLayout()
         0.0f,
         10.0f,
         -30.0f,
-        20.0f
+        20.0f,
+        -20.0f,
+        30.0f
     }};
 
     for (size_t index = 0; index < numSpatialObjects; ++index)
@@ -217,6 +223,7 @@ void BinuaralMixAudioProcessor::changeProgramName (int, const juce::String&) {}
 void BinuaralMixAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     stopThread (2000);
+    closeOfflineSofa();
 
     currentSampleRate.store (sampleRate);
     maximumBlockSize = juce::jmax (1, samplesPerBlock);
@@ -315,6 +322,7 @@ void BinuaralMixAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
 
         object.usingConvolverA = true;
         object.crossfading.store (false);
+        object.crossfadingFromDry = false;
         object.crossfadePosition = 1.0f;
         object.crossfadeIncrement = 0.0f;
         object.binauralIrReady.store (false);
@@ -333,13 +341,21 @@ void BinuaralMixAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
 
     currentIrLength.store (0);
     updateObjectsFromParameters();
-    startThread();
+
+    for (auto& snapshot : offlineSnapshots)
+        snapshot.valid = false;
+
+    if (isNonRealtime())
+        ensureOfflineSofaIsOpen();
+    else
+        startThread();
 }
 
 void BinuaralMixAudioProcessor::releaseResources()
 {
     signalThreadShouldExit();
     stopThread(3000);
+    closeOfflineSofa();
     
     for (auto& object : objects)
     {
@@ -355,18 +371,119 @@ bool BinuaralMixAudioProcessor::isBusesLayoutSupported (const BusesLayout& layou
     if (layouts.inputBuses.size() != 1)
         return false;
 
-    if (layouts.getMainInputChannelSet().size() != 8)
+    if (layouts.getMainInputChannelSet().size() != numInputChannels)
         return false;
 
     return true;
+}
+
+bool BinuaralMixAudioProcessor::ensureOfflineSofaIsOpen()
+{
+    if (offlineSofa != nullptr)
+        return true;
+
+    int error = MYSOFA_OK;
+    offlineFilterLength = 0;
+    offlineSofa = mysofa_open_data (
+        BinaryData::MIT_KEMAR_normal_pinna_sofa,
+        BinaryData::MIT_KEMAR_normal_pinna_sofaSize,
+        static_cast<float> (currentSampleRate.load()),
+        &offlineFilterLength,
+        &error);
+
+    if (offlineSofa == nullptr || error != MYSOFA_OK)
+    {
+        offlineSofa = nullptr;
+        offlineFilterLength = 0;
+        DBG ("Unable to open SOFA file for offline rendering");
+        return false;
+    }
+
+    return true;
+}
+
+void BinuaralMixAudioProcessor::closeOfflineSofa()
+{
+    if (offlineSofa != nullptr)
+    {
+        mysofa_close (offlineSofa);
+        offlineSofa = nullptr;
+    }
+
+    offlineFilterLength = 0;
+}
+
+void BinuaralMixAudioProcessor::prepareOfflineImpulseResponses()
+{
+    if (! ensureOfflineSofaIsOpen())
+        return;
+
+    for (size_t index = 0; index < objects.size(); ++index)
+    {
+        auto& object = objects[index];
+        auto& previous = offlineSnapshots[index];
+
+        if (! object.enable.load())
+        {
+            previous.valid = false;
+            continue;
+        }
+
+        // Finish the current 50 ms audio-time transition before preparing the
+        // newest requested position. This avoids replacing a convolver midway
+        // through a crossfade and naturally coalesces intermediate automation.
+        if (object.crossfading.load())
+            continue;
+
+        const auto azimuth = object.azimuth.load();
+        const auto elevation = object.elevation.load();
+        const auto distance = object.distance.load();
+        const auto size = object.size.load();
+        const auto room = object.room.load();
+
+        const auto changed =
+            ! previous.valid
+            || std::abs (azimuth - previous.azimuth) >= 0.05f
+            || std::abs (elevation - previous.elevation) >= 0.05f
+            || std::abs (distance - previous.distance) >= 0.005f
+            || std::abs (size - previous.size) >= 0.01f
+            || room != previous.room;
+
+        if (! changed)
+            continue;
+
+        prepareImpulseResponse (
+            object,
+            azimuth,
+            elevation,
+            distance,
+            size,
+            room,
+            offlineFilterLength,
+            offlineSofa);
+
+        previous.valid = true;
+        previous.azimuth = azimuth;
+        previous.elevation = elevation;
+        previous.distance = distance;
+        previous.size = size;
+        previous.room = room;
+    }
 }
 
 void BinuaralMixAudioProcessor::consumePendingImpulseResponse()
 {
     const auto sampleRate = currentSampleRate.load();
     
-    for (auto& object : objects) {
-    std::unique_ptr<PendingImpulseResponse> update;
+    for (auto& object : objects)
+    {
+        // Keep the inactive convolver unchanged until the current transition
+        // has completed. The loader may replace pendingImpulse with a newer
+        // position while we wait, which deliberately coalesces rapid changes.
+        if (object.crossfading.load())
+            continue;
+
+        std::unique_ptr<PendingImpulseResponse> update;
 
         if (object.pendingImpulseLock.tryEnter())
         {
@@ -378,6 +495,52 @@ void BinuaralMixAudioProcessor::consumePendingImpulseResponse()
             continue;
     
         
+        const auto firstImpulseResponse = ! object.binauralIrReady.load();
+
+        if (firstImpulseResponse)
+        {
+            object.leftConvolutionA.loadImpulseResponse (
+                std::move (update->left),
+                sampleRate,
+                juce::dsp::Convolution::Stereo::no,
+                juce::dsp::Convolution::Trim::no,
+                juce::dsp::Convolution::Normalise::no);
+
+            object.rightConvolutionA.loadImpulseResponse (
+                std::move (update->right),
+                sampleRate,
+                juce::dsp::Convolution::Stereo::no,
+                juce::dsp::Convolution::Trim::no,
+                juce::dsp::Convolution::Normalise::no);
+
+            object.usingConvolverA = true;
+            object.binauralIrReady.store (true);
+            currentIrLength.store (update->lengthInSamples);
+
+            if (isNonRealtime())
+            {
+                // Offline rendering prepared this IR before the first sample,
+                // so there is no dry/HRTF state change to crossfade.
+                object.crossfadePosition = 1.0f;
+                object.crossfadeIncrement = 0.0f;
+                object.crossfadingFromDry = false;
+                object.crossfading.store (false);
+            }
+            else
+            {
+                // During live playback, preserve continuity by fading from the
+                // temporary dry signal into the first ready HRTF.
+                constexpr float crossfadeTimeSeconds = 0.05f;
+                object.crossfadePosition = 0.0f;
+                object.crossfadeIncrement =
+                    1.0f / (crossfadeTimeSeconds * static_cast<float> (sampleRate));
+                object.crossfadingFromDry = true;
+                object.crossfading.store (true);
+            }
+
+            continue;
+        }
+
         if (object.usingConvolverA)
         {
             object.leftConvolutionB.loadImpulseResponse (
@@ -418,9 +581,8 @@ void BinuaralMixAudioProcessor::consumePendingImpulseResponse()
         
         object.crossfadeIncrement = 1.0f/ (crossfadeTimeSeconds * static_cast<float>(sampleRate));
         
+        object.crossfadingFromDry = false;
         object.crossfading.store(true);
-        
-        object.binauralIrReady.store (true);
     }
 }
 
@@ -431,6 +593,34 @@ void BinuaralMixAudioProcessor::processBlock (
     juce::ScopedNoDenormals noDenormals;
 
     updateObjectsFromParameters();
+
+    if (isNonRealtime())
+    {
+        // A fast offline host can advance minutes of audio while a background
+        // thread advances only milliseconds of wall-clock time. Stop that
+        // asynchronous path and prepare the exact current HRTFs synchronously.
+        if (isThreadRunning())
+        {
+            signalThreadShouldExit();
+            stopThread (3000);
+
+            for (size_t index = 0; index < objects.size(); ++index)
+            {
+                auto& object = objects[index];
+                const juce::SpinLock::ScopedLockType lock (
+                    object.pendingImpulseLock);
+                object.pendingImpulse.reset();
+                offlineSnapshots[index].valid = false;
+            }
+        }
+
+        prepareOfflineImpulseResponses();
+    }
+    else if (! isThreadRunning())
+    {
+        startThread();
+    }
+
     consumePendingImpulseResponse();
 
     const auto numSamples = buffer.getNumSamples();
@@ -575,53 +765,58 @@ void BinuaralMixAudioProcessor::processBlock (
                 juce::dsp::ProcessContextReplacing<float> (
                     rightBlockB));
 
-            float fadeA = 0.0f;
-            float fadeB = 0.0f;
-
-            if (object.crossfading.load())
-            {
-                /*
-                    usingConvolverA describes the current convolver.
-                    The other convolver contains the newly loaded IR.
-                */
-                if (object.usingConvolverA)
-                {
-                    // A -> B
-                    fadeA = 1.0f - object.crossfadePosition;
-                    fadeB = object.crossfadePosition;
-                }
-                else
-                {
-                    // B -> A
-                    fadeA = object.crossfadePosition;
-                    fadeB = 1.0f - object.crossfadePosition;
-                }
-            }
-            else if (object.usingConvolverA)
-            {
-                fadeA = 1.0f;
-                fadeB = 0.0f;
-            }
-            else
-            {
-                fadeA = 0.0f;
-                fadeB = 1.0f;
-            }
-
             /*
                 Store the crossfaded result in leftBufferA and
                 rightBufferA. These become this object's final
                 stereo working buffers.
             */
+            const auto isCrossfading = object.crossfading.load();
+            const auto isCrossfadingFromDry =
+                isCrossfading && object.crossfadingFromDry;
+
             for (int sample = 0; sample < blockSize; ++sample)
             {
+                const auto position = isCrossfading
+                    ? juce::jlimit (
+                        0.0f,
+                        1.0f,
+                        object.crossfadePosition
+                            + object.crossfadeIncrement * static_cast<float> (sample))
+                    : 1.0f;
+
+                float fadeA = object.usingConvolverA ? 1.0f : 0.0f;
+                float fadeB = object.usingConvolverA ? 0.0f : 1.0f;
+                float dryFade = 0.0f;
+
+                if (isCrossfadingFromDry)
+                {
+                    fadeA = object.usingConvolverA ? position : 0.0f;
+                    fadeB = object.usingConvolverA ? 0.0f : position;
+                    dryFade = 1.0f - position;
+                }
+                else if (isCrossfading)
+                {
+                    if (object.usingConvolverA)
+                    {
+                        fadeA = 1.0f - position;
+                        fadeB = position;
+                    }
+                    else
+                    {
+                        fadeA = position;
+                        fadeB = 1.0f - position;
+                    }
+                }
+
                 const auto left =
                     object.leftBufferA.getSample (0, sample) * fadeA
-                    + object.leftBufferB.getSample (0, sample) * fadeB;
+                    + object.leftBufferB.getSample (0, sample) * fadeB
+                    + object.monoBuffer.getSample (0, sample) * dryFade;
 
                 const auto right =
                     object.rightBufferA.getSample (0, sample) * fadeA
-                    + object.rightBufferB.getSample (0, sample) * fadeB;
+                    + object.rightBufferB.getSample (0, sample) * fadeB
+                    + object.monoBuffer.getSample (0, sample) * dryFade;
 
                 object.leftBufferA.setSample (0, sample, left);
                 object.rightBufferA.setSample (0, sample, right);
@@ -636,8 +831,11 @@ void BinuaralMixAudioProcessor::processBlock (
                 if (object.crossfadePosition >= 1.0f)
                 {
                     object.crossfadePosition = 1.0f;
-                    object.usingConvolverA =
-                        ! object.usingConvolverA;
+
+                    if (object.crossfadingFromDry)
+                        object.crossfadingFromDry = false;
+                    else
+                        object.usingConvolverA = ! object.usingConvolverA;
 
                     object.crossfading.store (false);
                 }
@@ -849,12 +1047,12 @@ void BinuaralMixAudioProcessor::run()
         DBG ("Unable to open SOFA file");
     }
 
-    std::array<bool, 4> hasPreviousPosition {};
-    std::array<float, 4> previousAzimuth {};
-    std::array<float, 4> previousElevation {};
-    std::array<float, 4> previousDistance {};
-    std::array<float, 4> previousSize {};
-    std::array<int, 4> previousRoom {};
+    std::array<bool, numSpatialObjects> hasPreviousPosition {};
+    std::array<float, numSpatialObjects> previousAzimuth {};
+    std::array<float, numSpatialObjects> previousElevation {};
+    std::array<float, numSpatialObjects> previousDistance {};
+    std::array<float, numSpatialObjects> previousSize {};
+    std::array<int, numSpatialObjects> previousRoom {};
     
 
     while (! threadShouldExit())

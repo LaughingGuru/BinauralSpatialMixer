@@ -20,6 +20,18 @@ BinuaralSenderAudioProcessor::BinuaralSenderAudioProcessor()
         parameters.state.setProperty (trackNamePropertyId, defaultTrackName, nullptr);
 
     ensureSenderInstanceId();
+    publishMetadataNow();
+    startTimerHz (1);
+}
+
+BinuaralSenderAudioProcessor::~BinuaralSenderAudioProcessor()
+{
+    stopTimer();
+}
+
+void BinuaralSenderAudioProcessor::timerCallback()
+{
+    sender.refreshHeartbeat();
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout
@@ -63,6 +75,7 @@ void BinuaralSenderAudioProcessor::processBlock (
 {
     juce::ScopedNoDenormals noDenormals;
     juce::ignoreUnused (buffer);
+    sender.refreshHeartbeat();
 
     const auto currentObjectId = getObjectId();
 

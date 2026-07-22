@@ -142,9 +142,8 @@
         }
 
         #objectControlsContainer {
-            flex: 0 1 auto;
+            flex: 1 1 auto;
             min-height: 0;
-            max-height: 48%;
             overflow-y: auto;
         }
 
@@ -194,62 +193,6 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            font-variant-numeric: tabular-nums;
-        }
-
-        .track-list {
-            min-height: 0;
-            overflow-y: auto;
-            border-top: 1px solid #303030;
-        }
-
-        .track {
-            display: grid;
-            grid-template-columns: 6px minmax(0, 1fr) 78px;
-            align-items: center;
-            height: 38px;
-            border-bottom: 1px solid #2c2c2c;
-            font-size: 12px;
-        }
-
-        .track-color {
-            width: 6px;
-            height: 100%;
-        }
-
-        .track-name {
-            padding-left: 10px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .track-meter {
-            position: relative;
-            height: 22px;
-            margin-right: 8px;
-            overflow: hidden;
-            background: #182818;
-            border: 1px solid #2b3b2b;
-        }
-
-        .track-meter-fill {
-            position: absolute;
-            inset: 0 auto 0 0;
-            width: 0%;
-            background: linear-gradient(90deg, #1fae30, #8cff38);
-            transition: width 80ms linear;
-        }
-
-        .track-meter-value {
-            position: relative;
-            z-index: 1;
-            display: block;
-            padding-right: 4px;
-            color: #dbe8d9;
-            font-size: 10px;
-            line-height: 20px;
-            text-align: right;
             font-variant-numeric: tabular-nums;
         }
 
@@ -477,9 +420,6 @@
             <div class="object-grid" id="objectGrid"></div>
 
             <div id="objectControlsContainer"></div>
-
-            <div class="section-title">Tracks</div>
-            <div class="track-list" id="trackList"></div>
         </aside>
 
         <main class="center">
@@ -575,7 +515,7 @@
         const listenerElevation = document.getElementById("listenerElevation");
         const masterLeftRms = document.getElementById("masterLeftRms");
         const masterRightRms = document.getElementById("masterRightRms");
-        const objectCount = 4;
+        const objectCount = 6;
         const initialElevations = [0, 15, -15, 30];
         const objectParameters = Array.from({ length: objectCount }, (_, index) => ({
             azimuth: ((index * 47 + 180) % 360) - 180,
@@ -873,6 +813,54 @@
             updateFocusedObject(nextSelectedObjectIndex);
         };
 
+        // Lightweight host-automation refresh. Unlike setSpatialState(), this
+        // updates existing controls and 3D objects without deleting/recreating
+        // the control panels on every automation frame.
+        window.updateAutomatedSpatialState = (state) => {
+            if (!state || !Array.isArray(state.objects)) {
+                return;
+            }
+
+            const parameterNames = [
+                "azimuth",
+                "distance",
+                "elevation",
+                "size",
+                "room"
+            ];
+
+            state.objects.slice(0, objectCount).forEach((objectState, index) => {
+                parameterNames.forEach((parameter) => {
+                    const nextValue = Number(objectState[parameter]);
+                    if (!Number.isFinite(nextValue)) {
+                        return;
+                    }
+
+                    objectParameters[index][parameter] = nextValue;
+
+                    const panel = document.getElementById(`controls-${index}`);
+                    const control = panel?.querySelector(
+                        `[data-parameter="${parameter}"]`
+                    );
+
+                    // Do not fight the user while a control is being dragged.
+                    if (control && document.activeElement !== control) {
+                        control.value = String(nextValue);
+                        const output = control.parentElement.querySelector("output");
+                        if (output) {
+                            output.textContent = formatParameter(parameter, nextValue);
+                        }
+                    }
+                });
+
+                updateObjectVisibility(index);
+            });
+
+            if (selectedObjectIndex !== null) {
+                updateSelectedObject();
+            }
+        };
+
         for (let i = 0; i < objectCount; i += 1) {
             const dot = document.createElement("button");
             dot.type = "button";
@@ -890,95 +878,6 @@
             dot.addEventListener("click", () => toggleObject(i));
             objectGrid.appendChild(dot);
         }
-
-        const trackList = document.getElementById("trackList");
-        const objectColors = [
-            "#29c9c2",
-            "#31c982",
-            "#d56a35",
-            "#8842e5",
-            "#d9b23b",
-            "#3f8bd9",
-            "#d94f82",
-            "#73d94f"
-        ];
-
-        function getObjectColor(objectId) {
-            const objectIndex = Math.max(0, Number(objectId || 1) - 1);
-            return objectColors[objectIndex % objectColors.length];
-        }
-
-        function renderSenderTracks(senderTracks) {
-            if (!trackList) {
-                return;
-            }
-
-            const uniqueTracks = new Map();
-
-            senderTracks
-                .filter((track) => track && Number(track.objectId) > 0)
-                .forEach((track) => {
-                    const objectId = Number(track.objectId);
-                    const trackName = String(track.trackName || `Object ${objectId}`).trim();
-                    const instanceId = String(track.instanceId || `${objectId}:${trackName}`);
-
-                    uniqueTracks.set(instanceId, {
-                        objectId,
-                        trackName: trackName || `Object ${objectId}`,
-                        instanceId,
-                        rmsDb: Number.isFinite(Number(track.rmsDb))
-                            ? Number(track.rmsDb)
-                            : -60
-                    });
-                });
-
-            const sortedTracks = Array.from(uniqueTracks.values()).sort((a, b) => {
-                if (a.objectId !== b.objectId) {
-                    return a.objectId - b.objectId;
-                }
-
-                return a.trackName.localeCompare(b.trackName, undefined, {
-                    numeric: true,
-                    sensitivity: "base"
-                });
-            });
-
-            trackList.replaceChildren();
-
-            sortedTracks.forEach((track) => {
-                const row = document.createElement("div");
-                const color = getObjectColor(track.objectId);
-                const colorSwatch = document.createElement("div");
-                const name = document.createElement("div");
-                const meter = document.createElement("div");
-                const meterFill = document.createElement("div");
-                const meterValue = document.createElement("span");
-                const rmsDb = Math.min(0, Math.max(-60, Number(track.rmsDb)));
-
-                row.className = "track";
-                colorSwatch.className = "track-color";
-                colorSwatch.style.background = color;
-                name.className = "track-name";
-                name.textContent = track.trackName;
-                meter.className = "track-meter";
-                meterFill.className = "track-meter-fill";
-                meterFill.style.width = `${dbToMeterPercent(rmsDb)}%`;
-                meterValue.className = "track-meter-value";
-                meterValue.textContent = `${rmsDb.toFixed(1)}`;
-
-                meter.append(meterFill, meterValue);
-                row.append(colorSwatch, name, meter);
-                trackList.appendChild(row);
-            });
-        }
-
-        window.updateSenderTracks = (senderTracks) => {
-            if (Array.isArray(senderTracks)) {
-                renderSenderTracks(senderTracks);
-            }
-        };
-
-        renderSenderTracks([]);
 
         const canvas = document.getElementById("three");
         const renderer = new THREE.WebGLRenderer({

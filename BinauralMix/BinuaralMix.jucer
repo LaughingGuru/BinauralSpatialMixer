@@ -2,7 +2,7 @@
 
 <JUCERPROJECT id="KKP2Kn" name="BinuaralMix" projectType="audioplug" useAppConfig="0"
               addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1" pluginFormats="buildAU,buildStandalone,buildVST3"
-              pluginVST3Category="Spatial,Stereo,Surround" pluginChannelConfigs="{8,2}">
+              pluginVST3Category="Spatial,Stereo,Surround" pluginChannelConfigs="{12,2}">
   <MAINGROUP id="HSUyhy" name="BinuaralMix">
     <GROUP id="{5767E0EC-6A4F-3C35-B1D8-6CC9CEB39FAF}" name="Resources">
       <FILE id="HQNg0h" name="appUI.html" compile="0" resource="1" file="Resources/appUI.html"
